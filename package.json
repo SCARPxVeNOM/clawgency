@@ -1,0 +1,27 @@
+{
+  "name": "clawgency-slot2-professional",
+  "private": true,
+  "scripts": {
+    "build:contracts": "hardhat compile",
+    "test:contracts": "hardhat test",
+    "test:agent": "node openclaw/tests/mock-flows.test.js",
+    "deploy:testnet": "hardhat run scripts/deploy-v2.ts --network bscTestnet",
+    "deploy:mainnet": "hardhat run scripts/deploy-v2.ts --network bscMainnet",
+    "verify:testnet": "hardhat run scripts/verify-v2.ts --network bscTestnet",
+    "verify:mainnet": "hardhat run scripts/verify-v2.ts --network bscMainnet",
+    "agent:workflow1": "node openclaw/workflows/workflow1-intelligent-drafting.js",
+    "agent:workflow2": "node openclaw/workflows/workflow2-proof-validation.js",
+    "agent:workflow3": "node openclaw/workflows/workflow3-monitoring.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.1.0",
+    "ethers": "^6.13.4"
+  }
+}

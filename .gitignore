@@ -1,0 +1,13 @@
+node_modules/
+frontend/node_modules/
+artifacts/
+cache/
+typechain-types/
+frontend/.next/
+frontend/playwright-report/
+frontend/test-results/
+frontend/*.log
+.env
+frontend/.env.local
+openclaw/logs/agent-audit.log
+openclaw/logs/monitor-state.json
