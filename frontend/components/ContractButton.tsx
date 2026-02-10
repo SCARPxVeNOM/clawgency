@@ -19,7 +19,7 @@ export function ContractButton({
   confirmMessage,
   onExecute,
   disabled = false,
-  className = "rounded-lg bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+  className = "btn-primary px-3 py-1.5 text-xs"
 }: ContractButtonProps) {
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);

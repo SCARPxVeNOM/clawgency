@@ -41,11 +41,20 @@ Files:
 
 - `frontend/playwright.config.ts`
 - `frontend/tests/smoke.spec.ts`
+- `frontend/tests/api-contracts.spec.ts`
+- `frontend/tests/agent-ui.spec.ts`
 
 Coverage:
 
 - `/login` loads and displays wallet login heading
 - `/brand/dashboard` route is reachable
+- API route contracts for OpenClaw workflows (`/api/agent/workflow1`, `/api/agent/workflow2`, `/api/agent/workflow3`)
+- API route contracts for email workflows (`/api/email/draft`, `/api/email/send`, `/api/email/replies`)
+- Human approval gate validation on email send (`humanApprovalConfirmed` required)
+- Rate-limit behavior validation for email routes (`429` + `Retry-After`)
+- Approval log signature validation checks (`signatureValid` true)
+- UI integration for AI proposal apply flow on brand dashboard
+- UI integration for admin monitoring trigger flow
 
 Run:
 

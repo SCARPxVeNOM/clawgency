@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 "use strict";
 
+const fs = require("fs");
+const path = require("path");
 const { ethers } = require("ethers");
 const { readJsonFile, statePath, writeJsonFile, writeAuditLog, readUserMap } = require("./_shared");
 
@@ -18,7 +20,17 @@ function env(name, fallback = "") {
   return process.env[name] ?? fallback;
 }
 
+function parseInput(arg) {
+  if (!arg) {
+    return {};
+  }
+  const candidatePath = path.resolve(process.cwd(), arg);
+  const raw = fs.existsSync(candidatePath) ? fs.readFileSync(candidatePath, "utf8") : arg;
+  return JSON.parse(raw);
+}
+
 async function main() {
+  const input = parseInput(process.argv[2]);
   const rpc = env("BSC_TESTNET_RPC_URL", "https://data-seed-prebsc-1-s1.bnbchain.org:8545");
   const contractAddress = env("CONTRACT_ADDRESS_TESTNET");
   if (!contractAddress) {
@@ -29,7 +41,11 @@ async function main() {
   const contract = new ethers.Contract(contractAddress, ABI, provider);
   const latestBlock = await provider.getBlockNumber();
   const state = readJsonFile(statePath(), { lastProcessedBlock: latestBlock - 50 });
-  const fromBlock = Math.max(0, Number(state.lastProcessedBlock ?? latestBlock - 50));
+  const requestedFromBlock = Number(input.fromBlockOverride);
+  const canUseOverride = Number.isInteger(requestedFromBlock) && requestedFromBlock >= 0;
+  const fromBlock = canUseOverride
+    ? Math.min(requestedFromBlock, latestBlock)
+    : Math.max(0, Number(state.lastProcessedBlock ?? latestBlock - 50));
   const userMap = readUserMap();
 
   const events = [];

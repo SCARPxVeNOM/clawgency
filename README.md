@@ -9,6 +9,7 @@ This repository includes:
 - `CampaignEscrowV2` smart contract suite for milestone-based campaign escrow.
 - Next.js frontend with brand/influencer/admin dashboards.
 - OpenClaw local workflows for drafting, proof validation, and monitoring.
+- Safe platform-managed Gmail integration (no user Gmail OAuth required).
 - Security/sandboxing guidance and logging patterns.
 - Automated tests and CI scaffolding.
 
@@ -40,8 +41,15 @@ clawgency-slot2-professional/
 |   |   |-- workflow1-intelligent-drafting.js
 |   |   |-- workflow2-proof-validation.js
 |   |   |-- workflow3-monitoring.js
+|   |   |-- workflow4-email-drafting.js
+|   |   |-- workflow5-reply-parsing.js
 |   |   |-- sample-workflow1.json
-|   |   `-- sample-workflow2.json
+|   |   |-- sample-workflow2.json
+|   |   |-- sample-email-draft.json
+|   |   `-- sample-email-reply.json
+|   |-- schemas/
+|   |   |-- email-draft-output.schema.json
+|   |   `-- email-reply-parse-output.schema.json
 |   |-- tests/
 |   |   `-- mock-flows.test.js
 |   |-- templates/
@@ -56,7 +64,8 @@ clawgency-slot2-professional/
 |   |   |-- brand/dashboard/
 |   |   |-- influencer/dashboard/
 |   |   |-- admin/analytics/
-|   |   `-- api/agent-logs/
+|   |   |-- api/agent-logs/
+|   |   `-- api/email/
 |   |-- components/
 |   |-- context/
 |   |-- lib/
@@ -115,6 +124,20 @@ ETHERSCAN_API_KEY=...
 AGENCY_TREASURY=0xYourAgencyTreasury
 CONTRACT_ADDRESS_TESTNET=
 CONTRACT_ADDRESS_MAINNET=
+EMAIL_PROVIDER_MODE=mock
+CLAWGENCY_PLATFORM_EMAIL=agency@clawgency.xyz
+GMAIL_ACCESS_TOKEN=
+GOOGLE_OAUTH_CLIENT_ID=
+GOOGLE_OAUTH_CLIENT_SECRET=
+GMAIL_REFRESH_TOKEN=
+GMAIL_REFRESH_TOKEN_FILE=.secrets/gmail-refresh-token.json
+GMAIL_OAUTH_REDIRECT_URI=http://localhost:3000/api/email/oauth/callback
+GMAIL_REPLY_LABEL=clawgency-replies
+HUMAN_APPROVAL_LOG_SIGNING_KEY=replace-with-long-random-secret
+EMAIL_DRAFT_RATE_LIMIT_PER_MIN=30
+EMAIL_SEND_RATE_LIMIT_PER_MIN=20
+EMAIL_REPLIES_RATE_LIMIT_PER_MIN=60
+EMAIL_APPROVAL_LOG_RATE_LIMIT_PER_MIN=120
 ```
 
 Build/test:
@@ -155,6 +178,22 @@ NEXT_PUBLIC_BSC_TESTNET_RPC_URL=https://data-seed-prebsc-1-s1.bnbchain.org:8545
 NEXT_PUBLIC_BSC_MAINNET_RPC_URL=https://bsc-dataseed.binance.org
 NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS=0x...
 NEXT_PUBLIC_ADMIN_WALLET=0x...
+CONTRACT_ADDRESS_TESTNET=0x...
+OPENCLAW_ROOT=../openclaw
+EMAIL_PROVIDER_MODE=mock
+CLAWGENCY_PLATFORM_EMAIL=agency@clawgency.xyz
+GMAIL_ACCESS_TOKEN=
+GOOGLE_OAUTH_CLIENT_ID=
+GOOGLE_OAUTH_CLIENT_SECRET=
+GMAIL_REFRESH_TOKEN=
+GMAIL_REFRESH_TOKEN_FILE=.secrets/gmail-refresh-token.json
+GMAIL_OAUTH_REDIRECT_URI=http://localhost:3000/api/email/oauth/callback
+GMAIL_REPLY_LABEL=clawgency-replies
+HUMAN_APPROVAL_LOG_SIGNING_KEY=replace-with-long-random-secret
+EMAIL_DRAFT_RATE_LIMIT_PER_MIN=30
+EMAIL_SEND_RATE_LIMIT_PER_MIN=20
+EMAIL_REPLIES_RATE_LIMIT_PER_MIN=60
+EMAIL_APPROVAL_LOG_RATE_LIMIT_PER_MIN=120
 ```
 
 Run:
@@ -190,9 +229,63 @@ On-chain monitoring:
 npm run agent:workflow3
 ```
 
+Email drafting (advisory only):
+
+```bash
+npm run agent:workflow4 -- openclaw/workflows/sample-email-draft.json
+```
+
+Email reply parsing (advisory only):
+
+```bash
+npm run agent:workflow5 -- openclaw/workflows/sample-email-reply.json
+```
+
+Frontend API routes for workflows:
+
+- `POST /api/agent/workflow1`
+- `POST /api/agent/workflow2`
+- `POST /api/agent/workflow3`
+- `GET /api/agent/workflow3`
+
+Frontend API routes for platform-managed email:
+
+- `POST /api/email/draft` (OpenClaw drafting only)
+- `POST /api/email/send` (backend sends via platform Gmail, explicit human approval gate required)
+- `POST /api/email/replies` (read configured label and parse replies)
+- `GET /api/email/replies`
+- `GET /api/email/approval-logs` (human approval audit trail)
+- `GET /api/email/oauth/start` (create one-time Google consent URL)
+- `GET /api/email/oauth/start?redirect=1` (redirect directly to consent)
+- `GET /api/email/oauth/callback` (token exchange + refresh token persistence)
+
 Logs are written to:
 
 - `openclaw/logs/agent-audit.log`
+
+One-time OAuth bootstrap (platform Gmail only):
+
+1. Start frontend: `cd frontend && npm run dev`
+2. Open `http://localhost:3000/api/email/oauth/start?redirect=1`
+3. Complete Google consent with the platform Gmail account
+4. Callback stores refresh token to `GMAIL_REFRESH_TOKEN_FILE`
+5. Keep `EMAIL_PROVIDER_MODE=live` and leave `GMAIL_ACCESS_TOKEN` empty
+
+Required payload fields for `POST /api/email/send`:
+
+- `humanApprovedBy`
+- `humanApprovalConfirmed: true`
+- `approvalSessionId`
+- optional metadata: `campaignId`, `draftId`
+
+Each send attempt is appended to:
+
+- `openclaw/logs/human-approval.log`
+
+Security hardening included:
+
+- HMAC-signed audit rows (`HUMAN_APPROVAL_LOG_SIGNING_KEY`)
+- per-route API rate limiting for draft/send/replies/approval-log endpoints
 
 ### 4) Agent Onboarding Steps
 
@@ -243,6 +336,7 @@ Details:
 - Proof validation is format/heuristic-based, not content-forensic.
 - Monitoring script is polling-based (not a long-running daemon).
 - Frontend analytics aggregates on-chain state without external BI backend.
+- Email integration uses a single platform account and does not support per-tenant inboxes yet.
 
 ## Security Considerations
 
@@ -250,7 +344,10 @@ Details:
 - Keep AI outputs advisory only.
 - Require manual operator confirmation for state-changing transactions.
 - Keep audit logs immutable and retained.
+- Do not pass Gmail OAuth/user secrets to OpenClaw workflows.
+- Moltbot never sends email directly; backend-only email send path is enforced.
 
 See:
 
 - `docs/SECURITY_SANDBOXING.md`
+- `docs/EMAIL_INTEGRATION.md`

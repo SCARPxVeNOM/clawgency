@@ -2,18 +2,19 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-2xl font-semibold text-ink">Clawgency Professional Console</h2>
-      <p className="mt-3 text-sm text-steel">
+    <section className="section-card reveal-up p-6 md:p-7">
+      <p className="hero-kicker">Command Center</p>
+      <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">Clawgency Professional Console</h2>
+      <p className="mt-3 max-w-2xl text-sm text-steel leading-relaxed">
         This workspace separates brand, influencer, and admin workflows while keeping transaction
         execution human-approved.
       </p>
       <div className="mt-6 flex flex-wrap gap-3">
-        <Link className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white" href="/login">
+        <Link className="btn-primary px-4 py-2 text-sm" href="/login">
           Go to Login
         </Link>
         <Link
-          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-steel"
+          className="btn-secondary px-4 py-2 text-sm"
           href="/brand/dashboard"
         >
           Open Brand Dashboard

@@ -9,5 +9,8 @@ frontend/test-results/
 frontend/*.log
 .env
 frontend/.env.local
+.secrets/
+frontend/.secrets/
 openclaw/logs/agent-audit.log
 openclaw/logs/monitor-state.json
+openclaw/logs/human-approval.log

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clawgency.xyz/schemas/email-reply-parse-output.schema.json",
+  "title": "OpenClaw Email Reply Parse Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "mode",
+    "interest",
+    "questions",
+    "confidence",
+    "reasoning",
+    "requiresHumanReview"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "mode": {
+      "type": "string",
+      "const": "advisory"
+    },
+    "interest": {
+      "type": "string",
+      "enum": ["yes", "no", "maybe"]
+    },
+    "questions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "reasoning": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requiresHumanReview": {
+      "type": "boolean",
+      "const": true
+    }
+  }
+}
+

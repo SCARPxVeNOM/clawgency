@@ -17,19 +17,28 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 
 const ROLE_STORAGE_KEY = "clawgency_role";
 
+function getStoredRole(): AppRole | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const storedRole = window.localStorage.getItem(ROLE_STORAGE_KEY);
+  if (storedRole === "brand" || storedRole === "influencer" || storedRole === "admin") {
+    return storedRole;
+  }
+  return null;
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const { address, isConnected } = useAccount();
   const adminWallet = (process.env.NEXT_PUBLIC_ADMIN_WALLET ?? "").toLowerCase();
   const isAdminWallet = Boolean(address && address.toLowerCase() === adminWallet && adminWallet);
 
-  const [role, setRoleState] = useState<AppRole>("brand");
+  const [role, setRoleState] = useState<AppRole>(() => getStoredRole() ?? "brand");
 
   useEffect(() => {
-    const storedRole = window.localStorage.getItem(ROLE_STORAGE_KEY) as AppRole | null;
-    if (storedRole === "brand" || storedRole === "influencer" || storedRole === "admin") {
-      setRoleState(storedRole);
-    } else if (isAdminWallet) {
+    if (isAdminWallet) {
       setRoleState("admin");
+      window.localStorage.setItem(ROLE_STORAGE_KEY, "admin");
     }
   }, [isAdminWallet]);
 

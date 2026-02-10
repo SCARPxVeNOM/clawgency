@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clawgency.xyz/schemas/email-draft-output.schema.json",
+  "title": "OpenClaw Email Draft Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "mode",
+    "draftId",
+    "subjectOptions",
+    "recommendedSubject",
+    "cta",
+    "bodyText",
+    "bodyHtml",
+    "structuredCampaign",
+    "reasoning",
+    "safety"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "mode": {
+      "type": "string",
+      "const": "advisory"
+    },
+    "draftId": {
+      "type": "string",
+      "minLength": 8
+    },
+    "subjectOptions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "recommendedSubject": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "url"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "bodyText": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bodyHtml": {
+      "type": "string",
+      "minLength": 1
+    },
+    "structuredCampaign": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "brandName",
+        "influencerName",
+        "influencerEmail",
+        "campaignTitle",
+        "campaignDetails",
+        "budgetBNB"
+      ],
+      "properties": {
+        "brandName": { "type": "string", "minLength": 1 },
+        "influencerName": { "type": "string", "minLength": 1 },
+        "influencerEmail": { "type": "string", "format": "email" },
+        "campaignTitle": { "type": "string", "minLength": 1 },
+        "campaignDetails": { "type": "string", "minLength": 1 },
+        "budgetBNB": { "type": "string", "minLength": 1 }
+      }
+    },
+    "reasoning": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requiresHumanApproval",
+        "platformManagedEmailOnly",
+        "noAutoSend"
+      ],
+      "properties": {
+        "requiresHumanApproval": { "type": "boolean", "const": true },
+        "platformManagedEmailOnly": { "type": "boolean", "const": true },
+        "noAutoSend": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}
+

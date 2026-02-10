@@ -5,7 +5,11 @@ const webPort = process.env.PW_PORT ?? "3000";
 
 export default defineConfig({
   testDir: "./tests",
-  timeout: 30_000,
+  timeout: 90_000,
+  expect: {
+    timeout: 15_000
+  },
+  workers: Number(process.env.PW_WORKERS ?? "1"),
   use: {
     baseURL,
     trace: "on-first-retry"
@@ -13,7 +17,8 @@ export default defineConfig({
   webServer: {
     command: "npm run dev",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    timeout: 180_000,
+    reuseExistingServer: false,
     env: {
       ...process.env,
       PORT: webPort

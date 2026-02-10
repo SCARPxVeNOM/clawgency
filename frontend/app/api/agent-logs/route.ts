@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
-import path from "path";
+import { resolveOpenClawAuditLogPath } from "@/lib/server/openclaw";
 
 export async function GET() {
   try {
-    const logPath = path.join(process.cwd(), "..", "openclaw", "logs", "agent-audit.log");
+    const logPath = resolveOpenClawAuditLogPath();
     if (!fs.existsSync(logPath)) {
       return NextResponse.json({ logs: [] });
     }

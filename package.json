@@ -11,7 +11,9 @@
     "verify:mainnet": "hardhat run scripts/verify-v2.ts --network bscMainnet",
     "agent:workflow1": "node openclaw/workflows/workflow1-intelligent-drafting.js",
     "agent:workflow2": "node openclaw/workflows/workflow2-proof-validation.js",
-    "agent:workflow3": "node openclaw/workflows/workflow3-monitoring.js"
+    "agent:workflow3": "node openclaw/workflows/workflow3-monitoring.js",
+    "agent:workflow4": "node openclaw/workflows/workflow4-email-drafting.js",
+    "agent:workflow5": "node openclaw/workflows/workflow5-reply-parsing.js"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

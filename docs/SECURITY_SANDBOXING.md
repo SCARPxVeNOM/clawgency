@@ -26,6 +26,8 @@ Operational constraints:
 - No private keys in agent runtime environment.
 - Read-only recommendation mode for workflows.
 - No transaction signing/broadcast in scripts.
+- No direct Gmail API access from OpenClaw scripts.
+- No user Gmail OAuth tokens accepted by OpenClaw inputs.
 - Input schema validation before processing.
 - Audit log append-only behavior in `openclaw/logs/agent-audit.log`.
 
@@ -57,6 +59,7 @@ Use templates in `openclaw/templates/safe-prompt-template.md`:
 - Modal confirmation for all state-changing actions.
 - Toast + transaction logger visibility for operator awareness.
 - Manual wallet confirmation required for every on-chain action.
+- Email sending route requires explicit human approver metadata before dispatch.
 
 ## Logging & Audit Trail
 

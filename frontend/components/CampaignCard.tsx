@@ -11,33 +11,67 @@ type CampaignCardProps = {
   actionSlot?: React.ReactNode;
 };
 
+const stateClassMap: Record<string, string> = {
+  Created: "status-created",
+  Funded: "status-funded",
+  Completed: "status-completed",
+  Cancelled: "status-cancelled"
+};
+
+function calculateProgress(released: bigint, total: bigint): number {
+  if (total === 0n) {
+    return 0;
+  }
+  const basisPoints = (released * 10_000n) / total;
+  return Math.min(100, Number(basisPoints) / 100);
+}
+
 export function CampaignCard({ campaign, actionSlot }: CampaignCardProps) {
+  const state = stateLabel(campaign.state);
+  const stateClass = stateClassMap[state] ?? "status-created";
+  const progress = calculateProgress(campaign.totalReleased, campaign.totalMilestoneAmount);
+
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-ink">Campaign #{campaign.id.toString()}</h3>
-        <span className="rounded-full bg-mist px-3 py-1 text-xs text-steel">{stateLabel(campaign.state)}</span>
-      </div>
-      <div className="mt-3 grid gap-2 text-xs text-steel md:grid-cols-2">
-        <p>Brand: {shortAddress(campaign.brand)}</p>
-        <p>Influencer: {shortAddress(campaign.influencer)}</p>
-        <p>Escrowed: {formatBnb(campaign.totalEscrowed)}</p>
-        <p>Released: {formatBnb(campaign.totalReleased)}</p>
-        <p>Total Budget: {formatBnb(campaign.totalMilestoneAmount)}</p>
-        <p>Agency Fee: {(campaign.agencyFeeBps / 100).toFixed(2)}%</p>
+    <article className="section-card reveal-up p-4 md:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3">
+        <h3 className="card-title">Campaign #{campaign.id.toString()}</h3>
+        <span className={`status-chip ${stateClass}`}>{state}</span>
       </div>
 
-      <div className="mt-3 space-y-1 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs">
+      <div className="mt-3 space-y-1.5">
+        <div className="progress-track">
+          <div className="progress-fill" style={{ width: `${progress.toFixed(2)}%` }} />
+        </div>
+        <p className="text-xs text-steel">Release Progress: {progress.toFixed(2)}%</p>
+      </div>
+
+      <div className="mt-3 grid gap-2 text-xs text-steel md:grid-cols-2">
+        <p className="rounded-lg border border-slate-200/70 bg-white/70 px-3 py-2">Brand: {shortAddress(campaign.brand)}</p>
+        <p className="rounded-lg border border-slate-200/70 bg-white/70 px-3 py-2">
+          Influencer: {shortAddress(campaign.influencer)}
+        </p>
+        <p className="rounded-lg border border-slate-200/70 bg-white/70 px-3 py-2">Escrowed: {formatBnb(campaign.totalEscrowed)}</p>
+        <p className="rounded-lg border border-slate-200/70 bg-white/70 px-3 py-2">Released: {formatBnb(campaign.totalReleased)}</p>
+        <p className="rounded-lg border border-slate-200/70 bg-white/70 px-3 py-2">
+          Total Budget: {formatBnb(campaign.totalMilestoneAmount)}
+        </p>
+        <p className="rounded-lg border border-slate-200/70 bg-white/70 px-3 py-2">
+          Agency Fee: {(campaign.agencyFeeBps / 100).toFixed(2)}%
+        </p>
+      </div>
+
+      <div className="mt-4 space-y-1.5 rounded-lg border border-slate-200/80 bg-white/70 p-3 text-xs shadow-sm">
         <p className="font-medium text-ink">Milestones</p>
         {campaign.milestones.map((m) => (
-          <p key={m.index.toString()} className="text-steel">
-            #{m.index.toString()} · {formatBnb(m.amount)} ·{" "}
+          <p key={m.index.toString()} className="rounded-md border border-slate-200/75 bg-white/80 px-2.5 py-1.5 text-steel">
+            #{m.index.toString()} - {formatBnb(m.amount)} -{" "}
             {m.paid ? "Paid" : m.approved ? "Approved" : m.proofHash ? "Proof Submitted" : "Pending Proof"}
           </p>
         ))}
       </div>
 
-      {actionSlot && <div className="mt-4 flex flex-wrap gap-2">{actionSlot}</div>}
+      {actionSlot && <div className="mt-4 flex flex-wrap gap-2.5">{actionSlot}</div>}
     </article>
   );
 }
+

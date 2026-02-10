@@ -16,9 +16,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Providers>
           <AppShell>
-            <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-              <div>{children}</div>
-              <aside>
+            <div className="content-grid">
+              <div className="space-y-5">
+                {children}
+              </div>
+              <aside className="lg:sticky lg:top-6">
                 <TransactionLogger />
               </aside>
             </div>
