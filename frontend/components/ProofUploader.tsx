@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Workflow2Response } from "@/types/agent";
+import { Card, CardBody, Input, Button } from "@heroui/react";
 
 type ProofUploaderProps = {
   disabled?: boolean;
@@ -20,12 +21,7 @@ export function ProofUploader({ disabled = false, onSubmit, onValidate }: ProofU
     trimmedProof.length > 0 && (trimmedProof.startsWith("ipfs://") || trimmedProof.startsWith("https://"));
 
   async function submit() {
-    if (!trimmedProof) {
-      return;
-    }
-    if (!proofFormatValid) {
-      return;
-    }
+    if (!trimmedProof || !proofFormatValid) return;
     setRunning(true);
     try {
       await onSubmit(trimmedProof);
@@ -37,9 +33,7 @@ export function ProofUploader({ disabled = false, onSubmit, onValidate }: ProofU
   }
 
   async function validate() {
-    if (!onValidate || !trimmedProof || !proofFormatValid) {
-      return;
-    }
+    if (!onValidate || !trimmedProof || !proofFormatValid) return;
     setValidating(true);
     try {
       const result = await onValidate(trimmedProof);
@@ -50,50 +44,59 @@ export function ProofUploader({ disabled = false, onSubmit, onValidate }: ProofU
   }
 
   return (
-    <div className="w-full section-card p-3">
-      <label className="block text-xs font-semibold text-ink">Proof Hash / URL</label>
-      <input
-        value={proofHash}
-        onChange={(event) => setProofHash(event.target.value)}
-        placeholder="ipfs://... or https://..."
-        className="input-field mt-2"
-      />
-      <p className="mt-1 text-[11px] text-steel">
-        Use a stable proof link format: `ipfs://...` or `https://...`.
-      </p>
-      {trimmedProof.length > 0 && !proofFormatValid && (
-        <p className="mt-1 text-[11px] text-red-700">Proof must start with `ipfs://` or `https://`.</p>
-      )}
-      <div className="mt-2 flex flex-wrap gap-2">
-        <button
-          className="btn-secondary px-3 py-1.5 text-xs"
-          disabled={disabled || validating || !trimmedProof || !proofFormatValid || !onValidate}
-          onClick={() => void validate()}
-        >
-          {validating ? "Validating..." : "Validate With AI"}
-        </button>
-        <button
-          className="btn-primary px-3 py-1.5 text-xs"
-          disabled={disabled || running || !trimmedProof || !proofFormatValid}
-          onClick={() => void submit()}
-        >
-          {running ? "Submitting..." : "Submit Proof"}
-        </button>
-      </div>
-
-      {validation && (
-        <div
-          className={`mt-3 rounded-lg border p-2.5 text-xs leading-relaxed ${
-            validation.suggestion === "approve"
-              ? "border-green-200 bg-green-50 text-green-800"
-              : "border-amber-200 bg-amber-50 text-amber-800"
-          }`}
-        >
-          <p className="font-medium">AI Suggestion: {validation.suggestion.toUpperCase()}</p>
-          <p>{validation.reasoning}</p>
-          <p className="mt-1">{validation.humanReviewComment}</p>
+    <Card className="w-full">
+      <CardBody className="p-4 gap-4">
+        <div>
+          <Input
+            label="PROOF HASH / URL"
+            labelPlacement="outside"
+            placeholder="ipfs://... or https://..."
+            value={proofHash}
+            onValueChange={setProofHash}
+            description="Use a stable proof link: ipfs://... or https://..."
+            errorMessage={trimmedProof.length > 0 && !proofFormatValid ? "Proof must start with ipfs:// or https://" : undefined}
+            isInvalid={trimmedProof.length > 0 && !proofFormatValid}
+          />
         </div>
-      )}
-    </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            color="secondary"
+            variant="flat"
+            isLoading={validating}
+            isDisabled={disabled || !trimmedProof || !proofFormatValid || !onValidate}
+            onPress={() => void validate()}
+          >
+            {validating ? "Validating..." : "🤖 Validate With AI"}
+          </Button>
+          <Button
+            size="sm"
+            color="primary"
+            variant="solid" // or shadow
+            isLoading={running}
+            isDisabled={disabled || !trimmedProof || !proofFormatValid}
+            onPress={() => void submit()}
+          >
+            {running ? "Submitting..." : "📤 Submit Proof"}
+          </Button>
+        </div>
+
+        {validation && (
+          <Card
+            className={`p-3 text-xs ${validation.suggestion === "approve"
+              ? "bg-success-50 text-success-700 border-success-200"
+              : "bg-warning-50 text-warning-700 border-warning-200"
+              }`}
+            shadow="none"
+            radius="sm"
+          >
+            <p className="font-bold">AI: {validation.suggestion.toUpperCase()}</p>
+            <p className="mt-1 font-medium">{validation.reasoning}</p>
+            <p className="mt-1 text-default-600 font-medium">{validation.humanReviewComment}</p>
+          </Card>
+        )}
+      </CardBody>
+    </Card>
   );
 }

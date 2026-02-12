@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession, type AppRole } from "@/context/SessionContext";
+import { Card, CardBody } from "@heroui/react";
 
 type RoleGuardProps = {
   allow: AppRole[];
@@ -11,12 +12,16 @@ export function RoleGuard({ allow, children }: RoleGuardProps) {
   const { role } = useSession();
   if (!allow.includes(role)) {
     return (
-      <div className="section-card p-5 text-sm text-amber-800">
-        <p className="font-semibold">Restricted Role View</p>
-        <p className="mt-1">
-          This page is restricted for role: <strong>{role}</strong>. Switch roles from the top bar.
-        </p>
-      </div>
+      <Card className="bg-warning-50 border-warning-200" shadow="sm">
+        <CardBody className="p-5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-warning-700">⚠️ Access Restricted</p>
+          <p className="text-lg font-bold text-warning-900 mt-1">Wrong Role</p>
+          <p className="mt-2 text-warning-800 font-medium text-sm">
+            This page needs role: <strong>{allow.join(" or ")}</strong>. You are: <strong>{role}</strong>.
+            Switch from the sidebar.
+          </p>
+        </CardBody>
+      </Card>
     );
   }
   return <>{children}</>;

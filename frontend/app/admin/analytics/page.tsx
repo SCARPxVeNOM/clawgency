@@ -6,6 +6,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { fetchAllCampaigns } from "@/lib/campaigns";
 import { isContractConfigured } from "@/lib/contract";
 import type { Workflow3Response } from "@/types/agent";
+import { Card, CardBody, CardHeader, Button, Input, Textarea, Checkbox, Spacer, Divider } from "@heroui/react";
 
 type AgentLog = {
   timestamp?: string;
@@ -189,10 +190,7 @@ export default function AdminAnalyticsPage() {
       });
 
       const payload = (await response.json()) as
-        | {
-            parsedReplies?: ParsedEmailReply[];
-            error?: string;
-          }
+        | { parsedReplies?: ParsedEmailReply[]; error?: string }
         | undefined;
       if (!response.ok) {
         throw new Error(payload?.error ?? "Failed to load parsed email replies.");
@@ -257,201 +255,189 @@ export default function AdminAnalyticsPage() {
 
   return (
     <RoleGuard allow={["admin"]}>
-      <div className="space-y-5">
-        <section className="section-card reveal-up p-5">
-          <h2 className="card-title">Admin Analytics</h2>
-          <p className="card-subtitle">
-            Operational metrics and OpenClaw recommendation trails for governance review.
+      <div className="space-y-6">
+
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold text-default-900">🛡️ Admin Analytics</h1>
+          <p className="text-sm text-default-500 font-medium mt-1">
+            Operational metrics and governance review
           </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <MetricCard label="Campaigns" value={campaignCount.toString()} />
-            <MetricCard label="Pending Proofs" value={pendingProofs.toString()} />
-            <MetricCard label="Pending Approvals" value={pendingApprovals.toString()} />
-          </div>
+        </div>
+
+        {/* Stats */}
+        <section className="grid grid-cols-3 gap-3">
+          <Card className="" shadow="sm">
+            <CardBody className="py-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-default-500">Campaigns</p>
+              <p className="text-2xl font-black text-default-900 mt-1">{campaignCount}</p>
+            </CardBody>
+          </Card>
+          <Card className="bg-warning-50 border border-warning-200" shadow="sm">
+            <CardBody className="py-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-warning-700">Pending Proofs</p>
+              <p className="text-2xl font-black text-warning-900 mt-1">{pendingProofs}</p>
+            </CardBody>
+          </Card>
+          <Card className="bg-primary-50 border border-primary-200" shadow="sm">
+            <CardBody className="py-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-primary-700">Pending Approvals</p>
+              <p className="text-2xl font-black text-primary-900 mt-1">{pendingApprovals}</p>
+            </CardBody>
+          </Card>
         </section>
 
-        <section className="section-card reveal-up reveal-delay-1 p-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-steel">Agent Interaction Logs</h3>
-          <button onClick={() => void runMonitoringScan()} disabled={monitoringLoading} className="btn-primary mt-3 px-3 py-1.5 text-xs">
-            {monitoringLoading ? "Running..." : "Run Monitor Now"}
-          </button>
+        {/* Agent Logs */}
+        <Card className="w-full">
+          <CardHeader className="flex items-center justify-between pb-2">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-default-900">Agent Interaction Logs</h3>
+            <Button size="sm" variant="flat" onPress={() => void runMonitoringScan()} isDisabled={monitoringLoading} isLoading={monitoringLoading}>
+              {monitoringLoading ? "Running..." : "🔄 Run Monitor Now"}
+            </Button>
+          </CardHeader>
+          <Divider />
+          <CardBody>
+            {monitoring && (
+              <Card className="bg-default-50 mb-4" shadow="none" radius="sm">
+                <CardBody className="p-3 text-xs">
+                  <p className="font-bold">Window: {monitoring.monitoringWindow.fromBlock} → {monitoring.monitoringWindow.toBlock}</p>
+                  <p>Events: {monitoring.observedEvents.length}</p>
+                  <p>Alerts: {monitoring.alerts.length}</p>
+                  {monitoring.recommendations.length > 0 && (
+                    <p className="mt-1 font-bold">Top: {monitoring.recommendations[0].recommendation}</p>
+                  )}
+                </CardBody>
+              </Card>
+            )}
 
-          {monitoring && (
-            <div className="mt-3 rounded-lg border border-slate-200/85 bg-white/70 p-3 text-xs text-steel">
-              <p>
-                Window: {monitoring.monitoringWindow.fromBlock} to {monitoring.monitoringWindow.toBlock}
-              </p>
-              <p>Observed events: {monitoring.observedEvents.length}</p>
-              <p>Alerts: {monitoring.alerts.length}</p>
-              {monitoring.recommendations.length > 0 && (
-                <p>Top recommendation: {monitoring.recommendations[0].recommendation}</p>
-              )}
+            <div className="space-y-2">
+              {logs.length === 0 && <p className="text-xs text-default-400 font-bold">No logs logs available.</p>}
+              {logs.slice().reverse().map((log, idx) => (
+                <div key={`${log.timestamp ?? "log"}-${idx}`} className="p-3 border border-default-200 rounded-lg text-xs hover:bg-default-50 transition-colors">
+                  <p className="font-bold text-default-900">{(log.workflow as string) ?? "workflow"}</p>
+                  <p className="text-default-500">Time: {(log.timestamp as string) ?? "N/A"}</p>
+                  <p className="text-default-500">User: {(log.userId as string) ?? "N/A"}</p>
+                  <p className="break-all text-default-500">Event: {(log.chainEventHash as string) ?? "N/A"}</p>
+                  <p className="text-default-500">Rec: {(log.recommendation as string) ?? "N/A"}</p>
+                </div>
+              ))}
             </div>
-          )}
+          </CardBody>
+        </Card>
 
-          <div className="mt-3 space-y-2.5">
-            {logs.length === 0 && <p className="text-xs text-steel">No logs available.</p>}
-            {logs.slice().reverse().map((log, idx) => (
-              <div key={`${log.timestamp ?? "log"}-${idx}`} className="log-entry text-xs">
-                <p className="font-semibold text-ink">{(log.workflow as string) ?? "workflow"}</p>
-                <p className="text-steel">Time: {(log.timestamp as string) ?? "N/A"}</p>
-                <p className="text-steel">User: {(log.userId as string) ?? "N/A"}</p>
-                <p className="break-all text-steel">Event Hash: {(log.chainEventHash as string) ?? "N/A"}</p>
-                <p className="text-steel">Recommendation: {(log.recommendation as string) ?? "N/A"}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="section-card reveal-up reveal-delay-2 p-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-steel">Human Approval Gate (Email Send)</h3>
-          <p className="mt-1 text-xs text-steel">
-            Draft preview and explicit approval are required before backend send. Every decision is written to approval audit logs.
-          </p>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <input
-              value={sendTo}
-              onChange={(event) => setSendTo(event.target.value)}
-              placeholder="Recipient email"
-              className="input-field"
-            />
-            <input
-              value={sendApprover}
-              onChange={(event) => setSendApprover(event.target.value)}
-              placeholder="Human approver id"
-              className="input-field"
-            />
-            <input
-              value={sendCampaignId}
-              onChange={(event) => setSendCampaignId(event.target.value)}
-              placeholder="Campaign id (optional)"
-              className="input-field"
-            />
-            <input
-              value={sendDraftId}
-              onChange={(event) => setSendDraftId(event.target.value)}
-              placeholder="Draft id (optional)"
-              className="input-field"
-            />
-          </div>
-
-          <input
-            value={sendSubject}
-            onChange={(event) => setSendSubject(event.target.value)}
-            placeholder="Email subject"
-            className="input-field mt-3"
-          />
-
-          <textarea
-            value={sendBodyText}
-            onChange={(event) => setSendBodyText(event.target.value)}
-            placeholder="Email body text"
-            className="input-field mt-3 min-h-[120px]"
-          />
-
-          <textarea
-            value={sendBodyHtml}
-            onChange={(event) => setSendBodyHtml(event.target.value)}
-            placeholder="Optional HTML body"
-            className="input-field mt-3 min-h-[96px]"
-          />
-
-          <div className="mt-3 rounded-lg border border-slate-200/85 bg-white/70 p-3 text-xs text-steel">
-            <p className="font-semibold text-ink">Final Draft Preview</p>
-            <p className="mt-1">To: {sendTo.trim() || "N/A"}</p>
-            <p>Subject: {sendSubject.trim() || "N/A"}</p>
-            <p className="mt-1 whitespace-pre-wrap break-words">
-              Body: {sendBodyText.trim() || "N/A"}
+        {/* Email Approval Gate */}
+        <Card className="w-full">
+          <CardHeader className="flex flex-col items-start gap-1 pb-2">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-default-900">Human Approval Gate (Email)</h3>
+            <p className="text-xs text-default-500 font-medium">
+              Draft preview and explicit approval required before send.
             </p>
-          </div>
-
-          <label className="mt-3 flex items-start gap-2 text-xs text-steel">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-3.5 w-3.5 accent-sky-600"
-              checked={sendConfirmed}
-              onChange={(event) => setSendConfirmed(event.target.checked)}
-            />
-            <span>I confirm this draft was manually reviewed and approved for send.</span>
-          </label>
-
-          <button onClick={() => void sendWithHumanApproval()} disabled={sendLoading} className="btn-primary mt-3 px-3 py-2 text-xs">
-            {sendLoading ? "Sending..." : "Approve + Send Email"}
-          </button>
-
-          {lastSendResult && (
-            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
-              <p className="font-semibold">Last Approved Send</p>
-              <p>Mode: {lastSendResult.sent.mode}</p>
-              <p>Message: {lastSendResult.sent.messageId}</p>
-              <p>Thread: {lastSendResult.sent.threadId}</p>
-              <p>Approval Session: {lastSendResult.approval.approvalSessionId}</p>
+          </CardHeader>
+          <Divider />
+          <CardBody className="gap-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <Input label="Recipient Email" value={sendTo} onValueChange={setSendTo} size="sm" />
+              <Input label="Approver ID" value={sendApprover} onValueChange={setSendApprover} size="sm" />
+              <Input label="Campaign ID (Optional)" value={sendCampaignId} onValueChange={setSendCampaignId} size="sm" />
+              <Input label="Draft ID (Optional)" value={sendDraftId} onValueChange={setSendDraftId} size="sm" />
             </div>
-          )}
 
-          <div className="mt-4 flex items-center justify-between">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-steel">Approval Audit Trail</h4>
-            <button onClick={() => void loadHumanApprovalLogs()} disabled={approvalLogsLoading} className="btn-secondary px-2.5 py-1 text-xs">
-              {approvalLogsLoading ? "Loading..." : "Refresh Logs"}
-            </button>
-          </div>
+            <Input label="Subject" value={sendSubject} onValueChange={setSendSubject} size="sm" />
+            <Textarea label="Body Text" value={sendBodyText} onValueChange={setSendBodyText} minRows={3} />
+            <Textarea label="Body HTML (Optional)" value={sendBodyHtml} onValueChange={setSendBodyHtml} minRows={2} />
 
-          <div className="mt-2 space-y-2.5">
-            {approvalLogs.length === 0 && <p className="text-xs text-steel">No approval logs yet.</p>}
-            {approvalLogs.slice().reverse().map((log, index) => (
-              <div key={`${log.timestamp ?? "approval"}-${log.approvalSessionId ?? index}`} className="log-entry text-xs">
-                <p className="font-semibold text-ink">{log.outcome ?? "unknown"}</p>
-                <p className="text-steel">Time: {log.timestamp ?? "N/A"}</p>
-                <p className="text-steel">Approver: {log.humanApprovedBy ?? "N/A"}</p>
-                <p className="text-steel">Approval Session: {log.approvalSessionId ?? "N/A"}</p>
-                <p className="text-steel">Campaign: {log.campaignId ?? "N/A"}</p>
-                <p className="text-steel">Draft: {log.draftId ?? "N/A"}</p>
-                <p className="break-all text-steel">Message: {log.messageId ?? "N/A"}</p>
-                <p className="break-all text-steel">Thread: {log.threadId ?? "N/A"}</p>
-                {typeof log.error === "string" && log.error && <p className="text-red-700">Error: {log.error}</p>}
-              </div>
-            ))}
-          </div>
-        </section>
+            {/* Preview */}
+            <Card className="bg-default-50" shadow="none" radius="sm">
+              <CardBody className="p-3 text-xs">
+                <p className="font-bold text-default-900">Final Draft Preview</p>
+                <p className="text-default-500 mt-1">To: {sendTo.trim() || "N/A"}</p>
+                <p className="text-default-500">Subject: {sendSubject.trim() || "N/A"}</p>
+                <p className="mt-1 text-default-500 whitespace-pre-wrap break-words">Body: {sendBodyText.trim() || "N/A"}</p>
+              </CardBody>
+            </Card>
 
-        <section className="section-card reveal-up reveal-delay-3 p-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-steel">Email Reply Intelligence</h3>
-          <p className="mt-1 text-xs text-steel">
-            Parsed from platform-managed inbox label only. Moltbot output is advisory and requires human review.
-          </p>
-          <button onClick={() => void loadEmailReplies()} disabled={emailRepliesLoading} className="btn-primary mt-3 px-3 py-1.5 text-xs">
-            {emailRepliesLoading ? "Loading..." : "Load Parsed Email Replies"}
-          </button>
+            <Checkbox isSelected={sendConfirmed} onValueChange={setSendConfirmed} size="sm">
+              I confirm this draft was manually reviewed and approved.
+            </Checkbox>
 
-          <div className="mt-3 space-y-2.5">
-            {emailReplies.length === 0 && <p className="text-xs text-steel">No parsed email replies loaded yet.</p>}
-            {emailReplies.map((item) => (
-              <div key={item.reply.messageId} className="log-entry text-xs">
-                <p className="font-semibold text-ink">{item.reply.subject || "Email Reply"}</p>
-                <p className="text-steel">From: {item.reply.fromEmail || "unknown"}</p>
-                <p className="text-steel">Received: {item.reply.receivedAt || "N/A"}</p>
-                <p className="text-steel">
-                  Interest: {item.parsed.interest.toUpperCase()} ({item.parsed.confidence.toFixed(2)})
-                </p>
-                <p className="text-steel">Reasoning: {item.parsed.reasoning}</p>
-                {item.parsed.questions.length > 0 && (
-                  <p className="text-steel">Questions: {item.parsed.questions.join(" | ")}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
+            <Button onPress={() => void sendWithHumanApproval()} isLoading={sendLoading} color="primary" className="w-full">
+              {sendLoading ? "Sending..." : "✅ Approve + Send"}
+            </Button>
+
+            {lastSendResult && (
+              <Card className="bg-success-50 border-success-200 border" shadow="none" radius="sm">
+                <CardBody className="p-3 text-xs">
+                  <p className="font-bold text-success-800">Last Approved Send</p>
+                  <p className="text-success-700">Mode: {lastSendResult.sent.mode}</p>
+                  <p className="text-success-700">Message: {lastSendResult.sent.messageId}</p>
+                  <p className="text-success-700">Thread: {lastSendResult.sent.threadId}</p>
+                  <p className="text-success-700">Session: {lastSendResult.approval.approvalSessionId}</p>
+                </CardBody>
+              </Card>
+            )}
+
+            <Spacer y={2} />
+
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-default-900">Approval Audit Trail</h4>
+              <Button size="sm" variant="bordered" onPress={() => void loadHumanApprovalLogs()} isLoading={approvalLogsLoading}>
+                Refresh
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              {approvalLogs.length === 0 && <p className="text-xs text-default-400 font-bold">No approval logs yet.</p>}
+              {approvalLogs.slice().reverse().map((log, index) => (
+                <div key={`${log.timestamp ?? "approval"}-${log.approvalSessionId ?? index}`} className="p-3 border border-default-200 rounded-lg text-xs hover:bg-default-50 transition-colors">
+                  <p className="font-bold text-default-900">{log.outcome ?? "unknown"}</p>
+                  <p className="text-default-500">Time: {log.timestamp ?? "N/A"}</p>
+                  <p className="text-default-500">Approver: {log.humanApprovedBy ?? "N/A"}</p>
+                  <p className="text-default-500">Session: {log.approvalSessionId ?? "N/A"}</p>
+                  <p className="text-default-500">Campaign: {log.campaignId ?? "N/A"}</p>
+                  <p className="text-default-500">Draft: {log.draftId ?? "N/A"}</p>
+                  <p className="break-all text-default-500">Message: {log.messageId ?? "N/A"}</p>
+                  <p className="break-all text-default-500">Thread: {log.threadId ?? "N/A"}</p>
+                  {typeof log.error === "string" && log.error && <p className="text-danger font-bold">Error: {log.error}</p>}
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Email Reply Intelligence */}
+        <Card className="w-full">
+          <CardHeader className="flex flex-col items-start gap-1 pb-2">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-default-900">Email Reply Intelligence</h3>
+            <p className="text-xs text-default-500 font-medium">
+              Parsed from platform-managed inbox. AI output is advisory and requires human review.
+            </p>
+            <Button onPress={() => void loadEmailReplies()} isLoading={emailRepliesLoading} size="sm" className="mt-2">
+              📧 Load Parsed Replies
+            </Button>
+          </CardHeader>
+          <Divider />
+          <CardBody>
+            <div className="space-y-2">
+              {emailReplies.length === 0 && <p className="text-xs text-default-400 font-bold">No parsed replies loaded.</p>}
+              {emailReplies.map((item) => (
+                <div key={item.reply.messageId} className="p-3 border border-default-200 rounded-lg text-xs hover:bg-default-50 transition-colors">
+                  <p className="font-bold text-default-900">{item.reply.subject || "Email Reply"}</p>
+                  <p className="text-default-500">From: {item.reply.fromEmail || "unknown"}</p>
+                  <p className="text-default-500">Received: {item.reply.receivedAt || "N/A"}</p>
+                  <p className="text-default-500">
+                    Interest: <span className="font-bold">{item.parsed.interest.toUpperCase()}</span> ({item.parsed.confidence.toFixed(2)})
+                  </p>
+                  <p className="text-default-500">Reasoning: {item.parsed.reasoning}</p>
+                  {item.parsed.questions.length > 0 && (
+                    <p className="text-default-500">Questions: {item.parsed.questions.join(" | ")}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+
       </div>
     </RoleGuard>
-  );
-}
-
-function MetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="metric-card">
-      <p className="metric-label">{label}</p>
-      <p className="metric-value">{value}</p>
-    </div>
   );
 }

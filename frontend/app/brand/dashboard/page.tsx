@@ -1,33 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatEther, isAddress, parseEther } from "viem";
+import { formatEther, parseEther } from "viem";
+import {
+  Plus, LayoutTemplate, Wallet, CheckCircle2, ChevronUp,
+  BarChart3, Coins, Zap, Building2, Sparkles, Send
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { CampaignCard } from "@/components/CampaignCard";
+import { BnbValue } from "@/components/BnbValue";
 import { ContractButton } from "@/components/ContractButton";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useSession } from "@/context/SessionContext";
-import { fetchAllCampaigns, stateLabel, subscribeCampaignEvents, type CampaignView } from "@/lib/campaigns";
+import { fetchAllCampaigns, subscribeCampaignEvents, type CampaignView } from "@/lib/campaigns";
 import { isContractConfigured } from "@/lib/contract";
 import { useContractActions } from "@/lib/useContractActions";
 import type { Workflow1Response } from "@/types/agent";
 
 export default function BrandDashboardPage() {
-  const { walletAddress, isConnected } = useSession();
+  const { walletAddress } = useSession();
   const actions = useContractActions();
 
   const [campaigns, setCampaigns] = useState<CampaignView[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  // Form States
   const [influencer, setInfluencer] = useState("");
   const [milestonesCsv, setMilestonesCsv] = useState("0.3,0.3,0.4");
   const [agencyFeeBps, setAgencyFeeBps] = useState("500");
   const [depositCampaignId, setDepositCampaignId] = useState("");
-  const [depositAmount, setDepositAmount] = useState("1.0");
+
+  // AI Draft States
   const [draftHeadline, setDraftHeadline] = useState("Need fitness influencer");
   const [draftBudgetBnb, setDraftBudgetBnb] = useState("1");
   const [draftDeliverables, setDraftDeliverables] = useState("Instagram reel + TikTok");
   const [draftTimeline, setDraftTimeline] = useState("3 days");
-  const [draftBrandAddr, setDraftBrandAddr] = useState("0x1111111111111111111111111111111111111111");
+  const draftBrandAddr = "0x1111111111111111111111111111111111111111";
   const [draftResult, setDraftResult] = useState<Workflow1Response | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
 
@@ -48,14 +57,9 @@ export default function BrandDashboardPage() {
 
   useEffect(() => {
     void loadCampaigns();
-    const stopWatching = subscribeCampaignEvents(() => {
-      void loadCampaigns();
-    });
+    const stopWatching = subscribeCampaignEvents(() => { void loadCampaigns(); });
     const interval = setInterval(() => void loadCampaigns(), 12_000);
-    return () => {
-      stopWatching();
-      clearInterval(interval);
-    };
+    return () => { stopWatching(); clearInterval(interval); };
   }, [loadCampaigns]);
 
   const depositCandidateCampaigns = useMemo(
@@ -63,411 +67,327 @@ export default function BrandDashboardPage() {
     [campaigns]
   );
 
+  const summary = useMemo(() => {
+    const totalBudget = campaigns.reduce((sum, campaign) => sum + campaign.totalMilestoneAmount, 0n);
+    const totalEscrowed = campaigns.reduce((sum, campaign) => sum + campaign.totalEscrowed, 0n);
+    const releaseReady = campaigns.filter((campaign) => campaign.milestones.some((m) => m.approved && !m.paid)).length;
+    return { totalBudget, totalEscrowed, activeCampaigns: depositCandidateCampaigns.length, releaseReady };
+  }, [campaigns, depositCandidateCampaigns.length]);
+
   const milestoneInput = useMemo(() => {
-    const parts = milestonesCsv
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean);
-
-    if (parts.length === 0) {
-      return {
-        milestones: [] as bigint[],
-        total: 0n,
-        error: "Enter at least one milestone amount."
-      };
-    }
-
+    const parts = milestonesCsv.split(",").map((v) => v.trim()).filter(Boolean);
+    if (parts.length === 0) return { milestones: [] as bigint[], total: 0n, error: "Enter at least one milestone amount." };
     const milestones: bigint[] = [];
     let total = 0n;
-
-    for (let index = 0; index < parts.length; index++) {
-      const value = parts[index];
+    for (let i = 0; i < parts.length; i++) {
       let wei: bigint;
-      try {
-        wei = parseEther(value);
-      } catch {
-        return {
-          milestones: [] as bigint[],
-          total: 0n,
-          error: `Milestone ${index + 1} is not a valid BNB amount.`
-        };
-      }
-
-      if (wei <= 0n) {
-        return {
-          milestones: [] as bigint[],
-          total: 0n,
-          error: `Milestone ${index + 1} must be greater than 0.`
-        };
-      }
-
+      try { wei = parseEther(parts[i]); } catch { return { milestones: [] as bigint[], total: 0n, error: `Milestone ${i + 1} is invalid.` }; }
+      if (wei <= 0n) return { milestones: [] as bigint[], total: 0n, error: `Milestone ${i + 1} must be > 0.` };
       milestones.push(wei);
       total += wei;
     }
-
     return { milestones, total, error: "" };
   }, [milestonesCsv]);
-
-  const selectedDepositCampaign = useMemo(
-    () => depositCandidateCampaigns.find((campaign) => campaign.id.toString() === depositCampaignId),
-    [depositCandidateCampaigns, depositCampaignId]
-  );
-
-  const selectedCampaignRemaining = useMemo(() => {
-    if (!selectedDepositCampaign) {
-      return 0n;
-    }
-    if (selectedDepositCampaign.totalEscrowed >= selectedDepositCampaign.totalMilestoneAmount) {
-      return 0n;
-    }
-    return selectedDepositCampaign.totalMilestoneAmount - selectedDepositCampaign.totalEscrowed;
-  }, [selectedDepositCampaign]);
 
   const agencyFeeInputValid = useMemo(() => {
     const parsed = Number(agencyFeeBps);
     return Number.isInteger(parsed) && parsed >= 0 && parsed <= 3000;
   }, [agencyFeeBps]);
 
-  useEffect(() => {
-    if (depositCandidateCampaigns.length === 0) {
-      if (depositCampaignId) {
-        setDepositCampaignId("");
-      }
-      return;
-    }
+  const handleCreate = async () => {
+    if (!walletAddress) return toast.error("Connect wallet first");
+    if (milestoneInput.error) return toast.error(milestoneInput.error);
+    if (!influencer.startsWith("0x") || influencer.length !== 42) return toast.error("Invalid influencer address");
+    await actions.createCampaign(
+      walletAddress as `0x${string}`,
+      influencer as `0x${string}`,
+      milestoneInput.milestones,
+      Number(agencyFeeBps)
+    );
+    setIsCreateOpen(false);
+  };
 
-    const exists = depositCandidateCampaigns.some((campaign) => campaign.id.toString() === depositCampaignId);
-    if (!exists) {
+  const handleDrafting = async () => {
+    setDraftLoading(true);
+    setDraftResult(null);
+    try {
+      const res = await fetch("/api/agent/workflow1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brandId: walletAddress || draftBrandAddr,
+          campaignBrief: { headline: draftHeadline, budgetBnb: draftBudgetBnb, deliverables: draftDeliverables, timeline: draftTimeline }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Drafting failed");
+      setDraftResult(data);
+      if (data.analysis?.suggestedMilestones) setMilestonesCsv(data.analysis.suggestedMilestones.join(","));
+      toast.success("AI Proposal Generated");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Drafting failed");
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (depositCandidateCampaigns.length > 0 && !depositCampaignId) {
       setDepositCampaignId(depositCandidateCampaigns[0].id.toString());
     }
   }, [depositCandidateCampaigns, depositCampaignId]);
 
-  const canSubmitCreate = useMemo(
-    () =>
-      Boolean(
-        isConnected &&
-          walletAddress &&
-          isAddress(influencer) &&
-          agencyFeeInputValid &&
-          !milestoneInput.error &&
-          milestoneInput.milestones.length > 0
-      ),
-    [agencyFeeInputValid, influencer, isConnected, milestoneInput.error, milestoneInput.milestones.length, walletAddress]
-  );
+  /* ── Shared input style ── */
+  const inputClass =
+    "w-full px-4 py-2.5 rounded-xl bg-white/60 border border-gray-200 text-sm font-body text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all";
+  const labelClass = "block text-[11px] font-body font-bold uppercase tracking-widest text-gray-400 mb-1.5";
 
-  async function createCampaign() {
-    if (!walletAddress || !isAddress(influencer)) {
-      toast.error("Provide a valid influencer address.");
-      return;
-    }
-    if (milestoneInput.error) {
-      throw new Error(milestoneInput.error);
-    }
-
-    const feeBps = Number(agencyFeeBps);
-    if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps > 3000) {
-      throw new Error("Agency fee must be an integer between 0 and 3000 bps.");
-    }
-
-    await actions.createCampaign(walletAddress, influencer as `0x${string}`, milestoneInput.milestones, feeBps);
-    await loadCampaigns();
-  }
-
-  async function deposit() {
-    if (!depositCampaignId.trim() || !selectedDepositCampaign) {
-      throw new Error("Select a valid campaign from your list.");
-    }
-    if (!isConnected) {
-      throw new Error("Connect your wallet to deposit.");
-    }
-
-    let amountWei: bigint;
-    try {
-      amountWei = parseEther(depositAmount);
-    } catch {
-      throw new Error("Enter a valid BNB amount for deposit.");
-    }
-
-    if (amountWei <= 0n) {
-      throw new Error("Deposit amount must be greater than 0.");
-    }
-    if (selectedCampaignRemaining > 0n && amountWei > selectedCampaignRemaining) {
-      throw new Error(`Deposit exceeds required escrow (${formatEther(selectedCampaignRemaining)} BNB).`);
-    }
-
-    const campaignId = BigInt(depositCampaignId);
-    await actions.depositFunds(campaignId, depositAmount);
-    await loadCampaigns();
-  }
-
-  function fillDepositWithRemaining() {
-    if (!selectedDepositCampaign) {
-      return;
-    }
-    setDepositAmount(selectedCampaignRemaining > 0n ? formatEther(selectedCampaignRemaining) : "0");
-  }
-
-  useEffect(() => {
-    if (walletAddress) {
-      setDraftBrandAddr(walletAddress);
-    }
-  }, [walletAddress]);
-
-  async function generateDraft() {
-    if (!draftBrandAddr || !isAddress(draftBrandAddr)) {
-      toast.error("Provide a valid brand address for draft generation.");
-      return;
-    }
-
-    setDraftLoading(true);
-    try {
-      const response = await fetch("/api/agent/workflow1", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({
-          headline: draftHeadline,
-          budgetBNB: draftBudgetBnb,
-          deliverables: draftDeliverables,
-          timeline: draftTimeline,
-          brandAddr: draftBrandAddr
-        })
-      });
-
-      const payload = (await response.json()) as Workflow1Response | { error?: string };
-      if (!response.ok) {
-        throw new Error(payload && "error" in payload ? payload.error ?? "Draft request failed." : "Draft request failed.");
-      }
-
-      setDraftResult(payload as Workflow1Response);
-      toast.success("Draft proposal generated. Review before applying.");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Draft request failed.";
-      toast.error(message);
-    } finally {
-      setDraftLoading(false);
-    }
-  }
-
-  function applyDraftProposal() {
-    if (!draftResult) {
-      return;
-    }
-
-    const params = draftResult.transactionProposal.params;
-    const influencerAddress = params[1];
-    const milestoneCsv = params[2].map((wei) => formatEther(BigInt(wei))).join(",");
-    const feeBps = String(params[3]);
-
-    setInfluencer(influencerAddress);
-    setMilestonesCsv(milestoneCsv);
-    setAgencyFeeBps(feeBps);
-    setDepositAmount(draftResult.budgetBNB);
-    toast.success("Draft applied to form. Manually review, then submit transaction.");
-  }
+  /* ── Stats config ── */
+  const stats = [
+    { label: "Active", value: summary.activeCampaigns.toString(), icon: BarChart3, color: "#6366f1", bg: "rgba(99,102,241,0.08)", isBnb: false },
+    { label: "Budget", value: `${formatEther(summary.totalBudget)} BNB`, icon: Coins, color: "#8b5cf6", bg: "rgba(139,92,246,0.08)", isBnb: true },
+    { label: "Escrowed", value: `${formatEther(summary.totalEscrowed)} BNB`, icon: Wallet, color: "#10b981", bg: "rgba(16,185,129,0.08)", isBnb: true },
+    { label: "Ready", value: summary.releaseReady.toString(), icon: Zap, color: summary.releaseReady > 0 ? "#f59e0b" : "#9ca3af", bg: summary.releaseReady > 0 ? "rgba(245,158,11,0.08)" : "rgba(0,0,0,0.03)", isBnb: false },
+  ];
 
   return (
     <RoleGuard allow={["brand"]}>
-      <div className="space-y-5">
-        <section className="section-card reveal-up p-5">
-          <h2 className="card-title">Brand Dashboard</h2>
-          <p className="card-subtitle">
-            Review influencer proofs, approve milestones, and manually release funds when ready.
-          </p>
-          <div className="mt-3 grid gap-2 text-xs text-steel md:grid-cols-3">
-            <p className="rounded-lg border border-slate-200 bg-white/75 px-3 py-2">1. Create campaign terms</p>
-            <p className="rounded-lg border border-slate-200 bg-white/75 px-3 py-2">2. Deposit escrow balance</p>
-            <p className="rounded-lg border border-slate-200 bg-white/75 px-3 py-2">3. Approve proof, then release</p>
-          </div>
+      <div className="space-y-8">
 
-          {!isContractConfigured && (
-            <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
-              Set `NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS` in `frontend/.env.local`.
-            </p>
-          )}
-        </section>
-
-        <section className="section-card reveal-up reveal-delay-1 p-5">
-          <h3 className="text-sm font-semibold text-ink">AI Campaign Drafting (OpenClaw)</h3>
-          <p className="card-subtitle">
-            Generates a structured transaction proposal only. On-chain actions still require manual wallet confirmation.
-          </p>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <input
-              value={draftBrandAddr}
-              onChange={(e) => setDraftBrandAddr(e.target.value)}
-              placeholder="Brand wallet address"
-              className="input-field"
-            />
-            <input
-              value={draftHeadline}
-              onChange={(e) => setDraftHeadline(e.target.value)}
-              placeholder="Campaign headline"
-              className="input-field"
-            />
-            <input
-              value={draftBudgetBnb}
-              onChange={(e) => setDraftBudgetBnb(e.target.value)}
-              placeholder="Budget in BNB"
-              className="input-field"
-            />
-            <input
-              value={draftDeliverables}
-              onChange={(e) => setDraftDeliverables(e.target.value)}
-              placeholder="Deliverables"
-              className="input-field"
-            />
-            <input
-              value={draftTimeline}
-              onChange={(e) => setDraftTimeline(e.target.value)}
-              placeholder="Timeline (e.g. 3 days)"
-              className="input-field"
-            />
-          </div>
-
-          <button onClick={() => void generateDraft()} disabled={draftLoading} className="btn-primary mt-3 px-3 py-2 text-xs">
-            {draftLoading ? "Generating..." : "Generate AI Proposal"}
-          </button>
-
-          {draftResult && (
-            <div className="mt-4 space-y-3 rounded-xl border border-slate-200/90 bg-white/75 p-4 text-xs shadow-sm reveal-up">
-              <p className="font-semibold text-ink">{draftResult.brandIntent}</p>
-              <p className="text-steel">
-                Confidence: extraction {draftResult.confidence.extraction.toFixed(2)}, category{" "}
-                {draftResult.confidence.category.toFixed(2)}, milestones {draftResult.confidence.milestonePlan.toFixed(2)}
-              </p>
-              <p className="text-steel">Suggested influencers: {draftResult.suggestedInfluencers.join(", ")}</p>
-              <p className="text-steel">
-                Proposal: {draftResult.transactionProposal.contractFunction}(
-                {draftResult.transactionProposal.params[0]}, {draftResult.transactionProposal.params[1]}, milestones[],
-                {draftResult.transactionProposal.params[3]})
-              </p>
-              {draftResult.validationWarnings.length > 0 && (
-                <p className="text-amber-700">Warnings: {draftResult.validationWarnings.join(" | ")}</p>
-              )}
-              <button onClick={applyDraftProposal} className="btn-secondary px-3 py-1.5 text-xs">
-                Apply Proposal To Form
-              </button>
+        {/* ════════ Header ════════ */}
+        <header className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl" style={{ background: "rgba(99,102,241,0.08)" }}>
+              <Building2 size={22} className="text-indigo-500" strokeWidth={2} />
             </div>
-          )}
-        </section>
-
-        <section className="section-card reveal-up reveal-delay-2 grid gap-4 p-5 md:grid-cols-2">
-          <div>
-            <h3 className="text-sm font-semibold text-ink">Create Campaign</h3>
-            <input
-              value={influencer}
-              onChange={(e) => setInfluencer(e.target.value)}
-              placeholder="Influencer wallet"
-              className="input-field mt-2"
-            />
-            <input
-              value={milestonesCsv}
-              onChange={(e) => setMilestonesCsv(e.target.value)}
-              placeholder="Milestones in BNB, comma-separated"
-              className="input-field mt-2"
-            />
-            <p className="mt-1 text-xs text-steel">
-              Total budget preview: {milestoneInput.error ? "Invalid input" : `${formatEther(milestoneInput.total)} BNB`}
-            </p>
-            {milestoneInput.error && <p className="mt-1 text-xs text-red-700">{milestoneInput.error}</p>}
-            <input
-              value={agencyFeeBps}
-              onChange={(e) => setAgencyFeeBps(e.target.value)}
-              placeholder="Agency fee in bps (e.g. 500)"
-              className="input-field mt-2"
-            />
-            {!agencyFeeInputValid && <p className="mt-1 text-xs text-red-700">Agency fee must be 0 to 3000 bps.</p>}
-            <div className="mt-2">
-              <ContractButton
-                label="Create Campaign"
-                confirmTitle="Create campaign on-chain?"
-                confirmMessage="This creates a new campaign. Transaction must be manually confirmed in wallet."
-                disabled={!canSubmitCreate}
-                onExecute={createCampaign}
-              />
+            <div>
+              <h1 className="text-2xl font-heading font-bold text-gray-900 tracking-tight">Brand Dashboard</h1>
+              <p className="text-sm font-body text-gray-400 font-medium mt-0.5">Manage campaigns & escrow</p>
             </div>
           </div>
 
-          <div>
-            <h3 className="text-sm font-semibold text-ink">Deposit Campaign Funds</h3>
-            <select value={depositCampaignId} onChange={(e) => setDepositCampaignId(e.target.value)} className="input-field mt-2">
-              {depositCandidateCampaigns.length === 0 && <option value="">No active campaigns available</option>}
-              {depositCandidateCampaigns.map((campaign) => (
-                <option key={campaign.id.toString()} value={campaign.id.toString()}>
-                  Campaign #{campaign.id.toString()} - {stateLabel(campaign.state)}
-                </option>
-              ))}
-            </select>
-            <input
-              value={depositAmount}
-              onChange={(e) => setDepositAmount(e.target.value)}
-              placeholder="Amount in BNB"
-              className="input-field mt-2"
-            />
-            {selectedDepositCampaign && (
-              <>
-                <p className="mt-2 text-xs text-steel">
-                  Escrowed {formatEther(selectedDepositCampaign.totalEscrowed)} /{" "}
-                  {formatEther(selectedDepositCampaign.totalMilestoneAmount)} BNB
-                </p>
-                <p className="mt-1 text-xs text-steel">Remaining required: {formatEther(selectedCampaignRemaining)} BNB</p>
-                <button onClick={fillDepositWithRemaining} className="btn-secondary mt-2 px-2.5 py-1 text-xs">
-                  Fill Remaining Amount
-                </button>
-              </>
+          <button
+            onClick={() => setIsCreateOpen(!isCreateOpen)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-body font-semibold transition-all"
+            style={{
+              background: isCreateOpen ? "rgba(239,68,68,0.08)" : "rgba(99,102,241,0.08)",
+              color: isCreateOpen ? "#ef4444" : "#6366f1",
+            }}
+          >
+            {isCreateOpen ? (
+              <><ChevronUp size={16} strokeWidth={2.5} /> Close</>
+            ) : (
+              <><Plus size={16} strokeWidth={2.5} /> New Campaign</>
             )}
-            <div className="mt-2">
-              <ContractButton
-                label="Deposit"
-                confirmTitle="Deposit escrow funds?"
-                confirmMessage="This sends BNB to campaign escrow."
-                disabled={!isConnected || !selectedDepositCampaign}
-                onExecute={deposit}
-              />
-            </div>
-          </div>
-        </section>
+          </button>
+        </header>
 
-        <section className="space-y-4 reveal-up reveal-delay-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-steel">Your Campaigns</h3>
-          {loading && <p className="text-sm text-steel">Loading campaigns...</p>}
-          {!loading && campaigns.length === 0 && (
-            <p className="section-card p-4 text-sm text-steel">No campaigns found for this brand wallet.</p>
-          )}
-          {campaigns.map((campaign) => {
-            const hasApprovedUnpaid = campaign.milestones.some((m) => m.approved && !m.paid);
-            const approvableMilestones = campaign.milestones.filter((m) => !m.approved && m.proofHash);
-
+        {/* ════════ Stats Grid ════════ */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {stats.map((s) => {
+            const Icon = s.icon;
             return (
-              <CampaignCard
-                key={campaign.id.toString()}
-                campaign={campaign}
-                actionSlot={
-                  <>
-                    {approvableMilestones.map((m) => (
-                      <ContractButton
-                        key={`approve-${campaign.id}-${m.index}`}
-                        label={`Approve M${m.index.toString()}`}
-                        confirmTitle="Approve milestone?"
-                        confirmMessage={`Approve milestone ${m.index.toString()} for campaign #${campaign.id.toString()} after manual proof review.`}
-                        onExecute={() => actions.approveMilestone(campaign.id, m.index).then(() => loadCampaigns())}
-                      />
-                    ))}
-                    <ContractButton
-                      label="Release Approved Funds"
-                      confirmTitle="Release approved funds?"
-                      confirmMessage="This executes on-chain payout split for approved milestones."
-                      disabled={!hasApprovedUnpaid}
-                      onExecute={() => actions.releaseFunds(campaign.id).then(() => loadCampaigns())}
-                    />
-                  </>
-                }
-              />
+              <div key={s.label} className="glass-card rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: s.bg }}>
+                    <Icon size={15} strokeWidth={2} style={{ color: s.color }} />
+                  </div>
+                  <p className="text-[10px] font-body font-bold uppercase tracking-widest text-gray-400">{s.label}</p>
+                </div>
+                <p className="text-xl font-heading font-bold text-gray-900">
+                  {s.isBnb ? <BnbValue amount={s.value} /> : s.value}
+                </p>
+              </div>
             );
           })}
+        </section>
+
+        {/* ════════ Create Campaign Panel ════════ */}
+        {isCreateOpen && (
+          <section className="glass-card rounded-3xl p-6 md:p-8 space-y-6">
+            <div className="grid md:grid-cols-2 gap-8">
+
+              {/* ── Left: AI Brief ── */}
+              <div className="space-y-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(139,92,246,0.1)" }}>
+                    <Sparkles size={16} strokeWidth={2} className="text-purple-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-heading font-bold text-gray-900">AI Brief</h3>
+                    <p className="text-[10px] font-body text-gray-400">Let AI analyze your campaign</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Headline</label>
+                  <input className={inputClass} placeholder="e.g. Need fitness influencer" value={draftHeadline} onChange={(e) => setDraftHeadline(e.target.value)} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Budget (BNB)</label>
+                    <input className={inputClass} placeholder="1.0" value={draftBudgetBnb} onChange={(e) => setDraftBudgetBnb(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Timeline</label>
+                    <input className={inputClass} placeholder="3 days" value={draftTimeline} onChange={(e) => setDraftTimeline(e.target.value)} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Deliverables</label>
+                  <textarea
+                    className={`${inputClass} resize-none`}
+                    rows={3}
+                    placeholder="Instagram reel + TikTok"
+                    value={draftDeliverables}
+                    onChange={(e) => setDraftDeliverables(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  onClick={() => void handleDrafting()}
+                  disabled={draftLoading}
+                  className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-body font-semibold text-white transition-all disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)" }}
+                >
+                  {draftLoading ? (
+                    <><span className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" /> Analyzing...</>
+                  ) : (
+                    <><Sparkles size={15} /> Generate Proposal</>
+                  )}
+                </button>
+
+                {draftResult && (
+                  <div className="border border-emerald-200 rounded-xl p-3 flex items-center gap-2" style={{ background: "rgba(16,185,129,0.06)" }}>
+                    <CheckCircle2 size={16} className="text-emerald-500" strokeWidth={2.5} />
+                    <span className="text-xs font-body font-semibold text-emerald-700">
+                      AI Analysis Complete — Confidence {draftResult.confidence.milestonePlan}/10
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Divider ── */}
+              <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-gray-100" style={{ position: "relative", width: 0, margin: "0 -16px" }}>
+                <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-100" />
+              </div>
+
+              {/* ── Right: Contract Form ── */}
+              <div className="space-y-5 md:border-l md:border-gray-100 md:pl-8">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
+                    <Wallet size={16} strokeWidth={2} className="text-indigo-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-heading font-bold text-gray-900">Smart Contract</h3>
+                    <p className="text-[10px] font-body text-gray-400">Deploy on BNB Chain</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Influencer Address</label>
+                  <input className={`${inputClass} font-mono`} placeholder="0x..." value={influencer} onChange={(e) => setInfluencer(e.target.value)} />
+                </div>
+
+                <div>
+                  <label className={labelClass}>Milestones (BNB)</label>
+                  <input className={`${inputClass} font-mono`} placeholder="0.5, 0.5" value={milestonesCsv} onChange={(e) => setMilestonesCsv(e.target.value)} />
+                  <p className="text-[10px] font-body text-gray-400 mt-1">Total: {formatEther(milestoneInput.total)} BNB</p>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Agency Fee (BPS)</label>
+                  <input className={`${inputClass} font-mono`} placeholder="500" value={agencyFeeBps} onChange={(e) => setAgencyFeeBps(e.target.value)} />
+                </div>
+
+                <ContractButton
+                  label="Create On-Chain Campaign"
+                  confirmTitle="Confirm Creation"
+                  confirmMessage={`Create campaign for ${formatEther(milestoneInput.total)} BNB?`}
+                  onExecute={async () => { await handleCreate(); }}
+                  disabled={!!milestoneInput.error || !agencyFeeInputValid || !influencer}
+                  className="w-full font-bold"
+                  size="lg"
+                  color="primary"
+                />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ════════ Campaign List ════════ */}
+        <section className="space-y-5">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-heading font-bold text-gray-900">Your Campaigns</h2>
+            <span className="text-xs font-body font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+              {campaigns.length}
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="glass-card rounded-3xl p-16 text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4" style={{ background: "rgba(99,102,241,0.08)" }}>
+                <div className="animate-spin w-5 h-5 border-2 border-indigo-200 border-t-indigo-500 rounded-full" />
+              </div>
+              <p className="text-sm font-body text-gray-400">Loading campaigns...</p>
+            </div>
+          ) : campaigns.length === 0 ? (
+            <div className="glass-card rounded-3xl p-16 text-center border border-dashed border-gray-200">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ background: "rgba(99,102,241,0.08)" }}>
+                <Send size={24} className="text-indigo-400" strokeWidth={1.5} />
+              </div>
+              <h3 className="text-lg font-heading font-bold text-gray-900 mb-2">No campaigns yet</h3>
+              <p className="text-sm font-body text-gray-400 mb-5 max-w-xs mx-auto">Create your first campaign to start managing influencer partnerships on-chain.</p>
+              <button
+                onClick={() => setIsCreateOpen(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-body font-semibold text-indigo-600"
+                style={{ background: "rgba(99,102,241,0.08)" }}
+              >
+                <Plus size={15} strokeWidth={2.5} /> Create Campaign
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-5">
+              {campaigns.map((c) => (
+                <div key={c.id.toString()} className="glass-card rounded-2xl overflow-hidden">
+                  <CampaignCard
+                    campaign={c}
+                    actionSlot={
+                      <div className="flex flex-wrap gap-2 w-full justify-end">
+                        {c.totalEscrowed < c.totalMilestoneAmount && (
+                          <ContractButton
+                            label="Deposit"
+                            confirmTitle="Fund Escrow"
+                            confirmMessage="Deposit remaining funds?"
+                            onExecute={async () => {
+                              const remaining = c.totalMilestoneAmount - c.totalEscrowed;
+                              await actions.depositFunds(c.id, formatEther(remaining));
+                            }}
+                            variant="flat"
+                            color="default"
+                            size="sm"
+                          />
+                        )}
+                        <ContractButton
+                          label="Release"
+                          confirmTitle="Release Funds"
+                          confirmMessage="Release all approved payments?"
+                          onExecute={async () => { await actions.releaseFunds(c.id); }}
+                          disabled={!c.milestones.some((m) => m.approved && !m.paid)}
+                          color="success"
+                          variant="solid"
+                          size="sm"
+                          className="text-white"
+                        />
+                      </div>
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </RoleGuard>

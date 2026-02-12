@@ -3,6 +3,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { Button } from "@heroui/react";
 
 type ContractButtonProps = {
   label: string;
@@ -10,7 +11,10 @@ type ContractButtonProps = {
   confirmMessage: string;
   onExecute: () => Promise<void>;
   disabled?: boolean;
-  className?: string;
+  className?: string; // allow overrides, but we won't really use it for styling anymore if we use Button
+  variant?: "solid" | "bordered" | "light" | "flat" | "faded" | "shadow";
+  color?: "default" | "primary" | "secondary" | "success" | "warning" | "danger";
+  size?: "sm" | "md" | "lg";
 };
 
 export function ContractButton({
@@ -19,7 +23,10 @@ export function ContractButton({
   confirmMessage,
   onExecute,
   disabled = false,
-  className = "btn-primary px-3 py-1.5 text-xs"
+  className = "",
+  variant = "solid",
+  color = "default",
+  size = "sm"
 }: ContractButtonProps) {
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
@@ -40,9 +47,17 @@ export function ContractButton({
 
   return (
     <>
-      <button className={className} disabled={disabled || running} onClick={() => setOpen(true)}>
-        {running ? "Submitting..." : label}
-      </button>
+      <Button
+        className={className}
+        isDisabled={disabled || running}
+        onPress={() => setOpen(true)}
+        isLoading={running}
+        variant={variant}
+        color={color}
+        size={size}
+      >
+        {label}
+      </Button>
       <ConfirmModal
         open={open}
         title={confirmTitle}

@@ -1,37 +1,48 @@
 "use client";
 
 import { useTransactionLog } from "@/context/TransactionLogContext";
+import { Card, CardHeader, CardBody, Button, Chip, Divider } from "@heroui/react";
 
-const statusColor: Record<string, string> = {
-  pending: "text-amber-700",
-  confirmed: "text-green-700",
-  failed: "text-red-700",
-  info: "text-blue-700"
+const statusColor: Record<string, "warning" | "success" | "danger" | "primary" | "default"> = {
+  pending: "warning",
+  confirmed: "success",
+  failed: "danger",
+  info: "primary",
 };
 
 export function TransactionLogger() {
   const { logs, clearLogs } = useTransactionLog();
 
   return (
-    <section className="section-card reveal-up reveal-delay-2 p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-ink">Transaction Logger</h2>
-        <button className="btn-secondary px-2.5 py-1 text-xs text-steel" onClick={clearLogs}>
+    <Card className="w-full">
+      <CardHeader className="flex items-center justify-between px-4 py-3">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-default-700">Transaction Logger</h2>
+        <Button size="sm" variant="flat" onPress={clearLogs}>
           Clear
-        </button>
-      </div>
-      {logs.length === 0 && <p className="mt-3 text-xs text-steel">No transaction activity yet.</p>}
-      <ul className="mt-3 space-y-2.5">
-        {logs.map((log) => (
-          <li key={log.id} className="log-entry text-xs">
-            <p className="font-semibold text-ink">{log.action}</p>
-            <p className={statusColor[log.status] ?? "text-steel"}>{log.status.toUpperCase()}</p>
-            <p className="text-steel">{new Date(log.timestamp).toLocaleString()}</p>
-            {log.txHash && <p className="break-all text-steel">Tx: {log.txHash}</p>}
-            {log.detail && <p className="text-steel">{log.detail}</p>}
-          </li>
-        ))}
-      </ul>
-    </section>
+        </Button>
+      </CardHeader>
+      <Divider />
+      <CardBody className="px-4 py-3">
+        {logs.length === 0 && (
+          <p className="text-xs text-default-400 font-medium text-center py-4">No transaction activity yet.</p>
+        )}
+
+        <ul className="space-y-2">
+          {logs.map((log) => (
+            <li key={log.id} className="p-3 rounded-lg border border-default-200 bg-default-50 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-bold text-default-900">{log.action}</p>
+                <Chip size="sm" variant="flat" color={statusColor[log.status] ?? "default"} className="h-5 text-[10px] font-bold">
+                  {log.status.toUpperCase()}
+                </Chip>
+              </div>
+              <p className="text-default-500 mt-1">{new Date(log.timestamp).toLocaleString()}</p>
+              {log.txHash && <p className="break-all text-default-400 font-mono mt-0.5">Tx: {log.txHash}</p>}
+              {log.detail && <p className="text-default-400 mt-0.5">{log.detail}</p>}
+            </li>
+          ))}
+        </ul>
+      </CardBody>
+    </Card>
   );
 }

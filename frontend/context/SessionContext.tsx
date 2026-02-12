@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 
 export type AppRole = "brand" | "influencer" | "admin";
@@ -42,10 +42,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAdminWallet]);
 
-  const setRole = (nextRole: AppRole) => {
+  const setRole = useCallback((nextRole: AppRole) => {
     setRoleState(nextRole);
     window.localStorage.setItem(ROLE_STORAGE_KEY, nextRole);
-  };
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -55,7 +55,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       isConnected,
       isAdminWallet
     }),
-    [role, address, isConnected, isAdminWallet]
+    [role, setRole, address, isConnected, isAdminWallet]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

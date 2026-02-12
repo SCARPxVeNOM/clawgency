@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { Clock, AlertCircle, CheckCircle, Sparkles, FileCheck, Upload, Zap } from "lucide-react";
 import { CampaignCard } from "@/components/CampaignCard";
 import { ProofUploader } from "@/components/ProofUploader";
 import { RoleGuard } from "@/components/RoleGuard";
@@ -67,79 +68,132 @@ export default function InfluencerDashboardPage() {
   const campaignsNeedingProof = campaigns.filter((campaign) =>
     campaign.milestones.some((m) => !m.paid && !m.proofHash)
   ).length;
+
   const campaignsWaitingApproval = campaigns.filter((campaign) =>
     campaign.milestones.some((m) => !m.paid && m.proofHash && !m.approved)
   ).length;
 
   return (
     <RoleGuard allow={["influencer"]}>
-      <div className="space-y-5">
-        <section className="section-card reveal-up p-5">
-          <h2 className="card-title">Influencer Dashboard</h2>
-          <p className="card-subtitle">
-            Submit proof hashes, track milestone approvals, and monitor on-chain releases.
-          </p>
-          <div className="mt-3 grid gap-2 text-xs text-steel md:grid-cols-3">
-            <p className="rounded-lg border border-slate-200 bg-white/75 px-3 py-2">1. Pick an assigned campaign</p>
-            <p className="rounded-lg border border-slate-200 bg-white/75 px-3 py-2">2. Validate and submit proof</p>
-            <p className="rounded-lg border border-slate-200 bg-white/75 px-3 py-2">3. Wait for brand approval + release</p>
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            <div className="metric-card">
-              <p className="metric-label">Assigned</p>
-              <p className="metric-value">{campaigns.length}</p>
+      <div className="space-y-8 max-w-4xl mx-auto">
+
+        {/* ── Header ── */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(139,92,246,0.1)" }}>
+              <Sparkles size={18} className="text-violet-500" />
             </div>
-            <div className="metric-card">
-              <p className="metric-label">Need Proof</p>
-              <p className="metric-value">{campaignsNeedingProof}</p>
-            </div>
-            <div className="metric-card">
-              <p className="metric-label">Awaiting Brand</p>
-              <p className="metric-value">{campaignsWaitingApproval}</p>
+            <div>
+              <h1 className="text-2xl font-heading font-bold text-gray-900">Creator Hub</h1>
+              <p className="text-xs font-body font-medium text-gray-400">Submit proofs & track milestones</p>
             </div>
           </div>
-          {!isContractConfigured && (
-            <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
-              Set `NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS` in `frontend/.env.local`.
-            </p>
-          )}
+        </div>
+
+        {/* ── Stats Row ── */}
+        <section className="grid grid-cols-3 gap-4">
+          {[
+            {
+              icon: <Clock size={15} strokeWidth={2.5} />,
+              label: "Active Gigs",
+              value: campaigns.length,
+              color: "#6366f1",
+              bg: "rgba(99,102,241,0.08)",
+            },
+            {
+              icon: <AlertCircle size={15} strokeWidth={2.5} />,
+              label: "Needs Proof",
+              value: campaignsNeedingProof,
+              color: "#f59e0b",
+              bg: "rgba(245,158,11,0.08)",
+            },
+            {
+              icon: <CheckCircle size={15} strokeWidth={2.5} />,
+              label: "Pending",
+              value: campaignsWaitingApproval,
+              color: "#10b981",
+              bg: "rgba(16,185,129,0.08)",
+            },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="glass-card rounded-2xl p-5 space-y-3 hover:shadow-glass-hover transition-all duration-300"
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center"
+                  style={{ background: stat.bg, color: stat.color }}
+                >
+                  {stat.icon}
+                </div>
+                <p className="text-[10px] font-body font-bold uppercase tracking-[0.15em] text-gray-400">
+                  {stat.label}
+                </p>
+              </div>
+              <p className="text-3xl font-heading font-bold text-gray-900">{stat.value}</p>
+            </div>
+          ))}
         </section>
 
-        <section className="space-y-4 reveal-up reveal-delay-1">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-steel">Assigned Campaigns</h3>
-          {loading && <p className="text-sm text-steel">Loading campaigns...</p>}
-          {!loading && campaigns.length === 0 && (
-            <p className="section-card p-4 text-sm text-steel">No campaigns are assigned to this influencer wallet.</p>
-          )}
+        {/* ── My Tasks ── */}
+        <section className="space-y-5">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(99,102,241,0.08)" }}>
+              <FileCheck size={13} className="text-indigo-500" />
+            </div>
+            <h2 className="text-sm font-heading font-bold text-gray-900 uppercase tracking-wide">My Tasks</h2>
+          </div>
 
-          {campaigns.map((campaign) => {
-            const nextProofNeeded = campaign.milestones.some((m) => !m.paid && !m.proofHash);
-
-            return (
-              <CampaignCard
-                key={campaign.id.toString()}
-                campaign={campaign}
-                actionSlot={
-                  <div className="w-full">
-                    {nextProofNeeded ? (
-                      <ProofUploader
-                        onValidate={(proofHash) => validateProof(campaign.id, proofHash)}
-                        onSubmit={async (proofHash) => {
-                          await actions.submitProof(campaign.id, proofHash);
-                          toast.success("Proof submitted for next milestone.");
-                          await loadCampaigns();
-                        }}
-                      />
-                    ) : (
-                      <p className="rounded-lg border border-slate-200 bg-white/70 p-3 text-xs text-steel">
-                        No pending proof submission right now.
-                      </p>
-                    )}
+          {loading ? (
+            <div className="glass-card rounded-2xl flex justify-center py-16">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin" />
+                <p className="text-xs font-body text-gray-400">Loading campaigns...</p>
+              </div>
+            </div>
+          ) : campaigns.length === 0 ? (
+            <div className="glass-card rounded-2xl text-center py-16 px-6">
+              <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-4" style={{ background: "rgba(139,92,246,0.08)" }}>
+                <Zap size={22} className="text-violet-400" />
+              </div>
+              <p className="text-base font-heading font-bold text-gray-700">No active campaigns</p>
+              <p className="text-sm font-body text-gray-400 mt-1 max-w-xs mx-auto">
+                When a brand assigns you a campaign, your tasks and milestones will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {campaigns.map((c) => (
+                <div key={c.id.toString()} className="space-y-3">
+                  {/* Campaign Card */}
+                  <div className="glass-card rounded-2xl overflow-hidden">
+                    <CampaignCard campaign={c} />
                   </div>
-                }
-              />
-            );
-          })}
+
+                  {/* Proof Uploader */}
+                  <div className="ml-5 pl-5 border-l-2 border-indigo-100">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "rgba(99,102,241,0.08)" }}>
+                        <Upload size={11} className="text-indigo-500" />
+                      </div>
+                      <p className="text-[10px] font-body font-bold uppercase tracking-[0.15em] text-gray-400">
+                        Submit Proof
+                      </p>
+                    </div>
+                    <div className="glass-card rounded-xl p-4">
+                      <ProofUploader
+                        onSubmit={async (hash) => {
+                          await actions.submitProof(c.id, hash);
+                          toast.success("Proof submitted on-chain!");
+                        }}
+                        onValidate={(hash) => validateProof(c.id, hash)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </RoleGuard>

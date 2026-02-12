@@ -1,29 +1,35 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/AppShell";
-import { TransactionLogger } from "@/components/TransactionLogger";
 
 export const metadata: Metadata = {
-  title: "Clawgency Slot 2",
-  description: "Professional AI-powered on-chain influencer agency on BNB Chain"
+  title: "Clawgency — AI Influencer Agency",
+  description: "AI-powered on-chain influencer agency on BNB Chain"
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f0f0ff"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <head>
+        {/* Clash Display (heading) + Satoshi (body) from Fontshare */}
+        <link
+          href="https://api.fontshare.com/v2/css?f[]=clash-display@200,300,400,500,600,700&f[]=satoshi@300,400,500,700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="antialiased">
         <Providers>
           <AppShell>
-            <div className="content-grid">
-              <div className="space-y-5">
-                {children}
-              </div>
-              <aside className="lg:sticky lg:top-6">
-                <TransactionLogger />
-              </aside>
-            </div>
+            {children}
           </AppShell>
         </Providers>
       </body>
