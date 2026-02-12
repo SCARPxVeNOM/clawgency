@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatEther, parseEther } from "viem";
 import {
-  Plus, LayoutTemplate, Wallet, CheckCircle2, ChevronUp,
+  Plus, Wallet, CheckCircle2, ChevronUp,
   BarChart3, Coins, Zap, Building2, Sparkles, Send
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -23,7 +23,7 @@ export default function BrandDashboardPage() {
 
   const [campaigns, setCampaigns] = useState<CampaignView[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(true);
 
   // Form States
   const [influencer, setInfluencer] = useState("");
@@ -115,20 +115,31 @@ export default function BrandDashboardPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          brandId: walletAddress || draftBrandAddr,
-          campaignBrief: { headline: draftHeadline, budgetBnb: draftBudgetBnb, deliverables: draftDeliverables, timeline: draftTimeline }
+          headline: draftHeadline,
+          budgetBNB: draftBudgetBnb,
+          deliverables: draftDeliverables,
+          timeline: draftTimeline,
+          brandAddr: walletAddress || draftBrandAddr
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Drafting failed");
-      setDraftResult(data);
-      if (data.analysis?.suggestedMilestones) setMilestonesCsv(data.analysis.suggestedMilestones.join(","));
+      setDraftResult(data as Workflow1Response);
       toast.success("AI Proposal Generated");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Drafting failed");
     } finally {
       setDraftLoading(false);
     }
+  };
+
+  const applyDraftToForm = () => {
+    if (!draftResult) return;
+    const [, influencerAddr, milestonesWei, feeBps] = draftResult.transactionProposal.params;
+    setInfluencer(influencerAddr);
+    setMilestonesCsv(milestonesWei.map((value) => formatEther(BigInt(value))).join(","));
+    setAgencyFeeBps(String(feeBps));
+    toast.success("AI proposal applied to form");
   };
 
   useEffect(() => {
@@ -255,16 +266,22 @@ export default function BrandDashboardPage() {
                   {draftLoading ? (
                     <><span className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" /> Analyzing...</>
                   ) : (
-                    <><Sparkles size={15} /> Generate Proposal</>
+                    <><Sparkles size={15} /> Generate AI Proposal</>
                   )}
                 </button>
 
                 {draftResult && (
-                  <div className="border border-emerald-200 rounded-xl p-3 flex items-center gap-2" style={{ background: "rgba(16,185,129,0.06)" }}>
-                    <CheckCircle2 size={16} className="text-emerald-500" strokeWidth={2.5} />
-                    <span className="text-xs font-body font-semibold text-emerald-700">
-                      AI Analysis Complete — Confidence {draftResult.confidence.milestonePlan}/10
-                    </span>
+                  <div className="border border-emerald-200 rounded-xl p-3 space-y-2" style={{ background: "rgba(16,185,129,0.06)" }}>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={16} className="text-emerald-500" strokeWidth={2.5} />
+                      <span className="text-xs font-body font-semibold text-emerald-700">
+                        AI Analysis Complete - Confidence {draftResult.confidence.milestonePlan}/10
+                      </span>
+                    </div>
+                    <p className="text-xs font-body text-emerald-800">{draftResult.brandIntent}</p>
+                    <button onClick={applyDraftToForm} className="w-full rounded-lg bg-emerald-600 text-white text-xs font-bold py-2">
+                      Apply Proposal To Form
+                    </button>
                   </div>
                 )}
               </div>
@@ -288,18 +305,18 @@ export default function BrandDashboardPage() {
 
                 <div>
                   <label className={labelClass}>Influencer Address</label>
-                  <input className={`${inputClass} font-mono`} placeholder="0x..." value={influencer} onChange={(e) => setInfluencer(e.target.value)} />
+                  <input className={`${inputClass} font-mono`} placeholder="Influencer wallet" value={influencer} onChange={(e) => setInfluencer(e.target.value)} />
                 </div>
 
                 <div>
                   <label className={labelClass}>Milestones (BNB)</label>
-                  <input className={`${inputClass} font-mono`} placeholder="0.5, 0.5" value={milestonesCsv} onChange={(e) => setMilestonesCsv(e.target.value)} />
+                  <input className={`${inputClass} font-mono`} placeholder="Milestones in BNB, comma-separated" value={milestonesCsv} onChange={(e) => setMilestonesCsv(e.target.value)} />
                   <p className="text-[10px] font-body text-gray-400 mt-1">Total: {formatEther(milestoneInput.total)} BNB</p>
                 </div>
 
                 <div>
                   <label className={labelClass}>Agency Fee (BPS)</label>
-                  <input className={`${inputClass} font-mono`} placeholder="500" value={agencyFeeBps} onChange={(e) => setAgencyFeeBps(e.target.value)} />
+                  <input className={`${inputClass} font-mono`} placeholder="Agency fee in bps (e.g. 500)" value={agencyFeeBps} onChange={(e) => setAgencyFeeBps(e.target.value)} />
                 </div>
 
                 <ContractButton

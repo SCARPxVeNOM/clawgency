@@ -300,8 +300,8 @@ export default function AdminAnalyticsPage() {
             {monitoring && (
               <Card className="bg-default-50 mb-4" shadow="none" radius="sm">
                 <CardBody className="p-3 text-xs">
-                  <p className="font-bold">Window: {monitoring.monitoringWindow.fromBlock} → {monitoring.monitoringWindow.toBlock}</p>
-                  <p>Events: {monitoring.observedEvents.length}</p>
+                  <p className="font-bold">Window: {monitoring.monitoringWindow.fromBlock} to {monitoring.monitoringWindow.toBlock}</p>
+                  <p>Observed events: {monitoring.observedEvents.length}</p>
                   <p>Alerts: {monitoring.alerts.length}</p>
                   {monitoring.recommendations.length > 0 && (
                     <p className="mt-1 font-bold">Top: {monitoring.recommendations[0].recommendation}</p>

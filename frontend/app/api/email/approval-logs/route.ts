@@ -29,7 +29,14 @@ export async function GET(request: Request) {
     const rawLimit = Number(url.searchParams.get("limit") ?? "100");
     const limit = Number.isFinite(rawLimit) ? rawLimit : 100;
 
-    const logs = await readHumanApprovalLogs(limit);
+    const logs = (await readHumanApprovalLogs(limit))
+      .filter(
+        (entry) =>
+          typeof entry.signature === "string" &&
+          typeof entry.signatureValid === "boolean"
+      )
+      .reverse();
+
     return NextResponse.json({
       count: logs.length,
       logs
