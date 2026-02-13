@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatEther, parseEther } from "viem";
 import {
   Plus, Wallet, CheckCircle2, ChevronUp,
-  BarChart3, Coins, Zap, Building2, Sparkles, Send
+  BarChart3, Coins, Zap, Building2, Sparkles, Send, Lock
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { CampaignCard } from "@/components/CampaignCard";
@@ -39,6 +39,7 @@ export default function BrandDashboardPage() {
   const draftBrandAddr = "0x1111111111111111111111111111111111111111";
   const [draftResult, setDraftResult] = useState<Workflow1Response | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
+  const [isDraftAppliedToForm, setIsDraftAppliedToForm] = useState(false);
 
   const loadCampaigns = useCallback(async (options?: { background?: boolean }) => {
     const isBackgroundRefresh = options?.background === true;
@@ -102,23 +103,95 @@ export default function BrandDashboardPage() {
     return Number.isInteger(parsed) && parsed >= 0 && parsed <= 3000;
   }, [agencyFeeBps]);
 
+  const baseCreateValidationError = useMemo(() => {
+    if (!walletAddress) return "Connect wallet first.";
+    if (milestoneInput.error) return milestoneInput.error;
+    if (!influencer.startsWith("0x") || influencer.length !== 42) return "Enter a valid influencer address.";
+    if (!agencyFeeInputValid) return "Agency fee must be an integer between 0 and 3000 bps.";
+    return "";
+  }, [walletAddress, milestoneInput.error, influencer, agencyFeeInputValid]);
+
+  const aiGateError = useMemo(() => {
+    if (!draftResult) return "Generate AI proposal first.";
+    if (!isDraftAppliedToForm) return "Apply AI proposal to contract form first.";
+    return "";
+  }, [draftResult, isDraftAppliedToForm]);
+
+  const createDisabledReason = baseCreateValidationError || aiGateError;
+  const createDisabled = Boolean(createDisabledReason);
+
+  const sendProposalEmail = async (campaignId: bigint) => {
+    const campaignDetails = [
+      `Deliverables: ${draftDeliverables}`,
+      `Timeline: ${draftTimeline}`,
+      `Milestones (BNB): ${milestonesCsv}`,
+      `Agency fee (bps): ${agencyFeeBps}`
+    ].join("\n");
+
+    const ctaUrl = `${window.location.origin}/influencer/dashboard?campaignId=${campaignId.toString()}`;
+
+    const response = await fetch("/api/campaigns/proposal-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        campaignId: campaignId.toString(),
+        brandWallet: walletAddress,
+        influencerWallet: influencer,
+        campaignTitle: draftHeadline,
+        campaignDetails,
+        budgetBNB: formatEther(milestoneInput.total),
+        ctaUrl
+      })
+    });
+
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    if (!response.ok) {
+      throw new Error(payload?.error ?? "Failed to send proposal email.");
+    }
+  };
+
   const handleCreate = async () => {
-    if (!walletAddress) return toast.error("Connect wallet first");
-    if (milestoneInput.error) return toast.error(milestoneInput.error);
-    if (!influencer.startsWith("0x") || influencer.length !== 42) return toast.error("Invalid influencer address");
+    if (createDisabledReason) return toast.error(createDisabledReason);
+
+    const previousLatestCampaignId = campaigns.reduce((maxId, campaign) => (campaign.id > maxId ? campaign.id : maxId), 0n);
+
     await actions.createCampaign(
       walletAddress as `0x${string}`,
       influencer as `0x${string}`,
       milestoneInput.milestones,
       Number(agencyFeeBps)
     );
-    await loadCampaigns({ background: true });
+
+    const allCampaigns = await fetchAllCampaigns();
+    const ownCampaigns = allCampaigns.filter((campaign) => campaign.brand.toLowerCase() === walletAddress?.toLowerCase());
+    setCampaigns(ownCampaigns);
+
+    const createdCampaign =
+      ownCampaigns
+        .filter((campaign) => campaign.id > previousLatestCampaignId)
+        .sort((a, b) => Number(b.id - a.id))[0] ??
+      ownCampaigns.sort((a, b) => Number(b.id - a.id))[0];
+
+    if (createdCampaign) {
+      setDepositCampaignId(createdCampaign.id.toString());
+      try {
+        await sendProposalEmail(createdCampaign.id);
+        toast.success("Campaign created and proposal email sent to creator.");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Proposal email failed.";
+        toast.error(`Campaign created, but email failed: ${message}`);
+      }
+    }
+
     setIsCreateOpen(false);
+    setIsDraftAppliedToForm(false);
   };
 
   const handleDrafting = async () => {
     setDraftLoading(true);
     setDraftResult(null);
+    setIsDraftAppliedToForm(false);
+
     try {
       const res = await fetch("/api/agent/workflow1", {
         method: "POST",
@@ -148,6 +221,7 @@ export default function BrandDashboardPage() {
     setInfluencer(influencerAddr);
     setMilestonesCsv(milestonesWei.map((value) => formatEther(BigInt(value))).join(","));
     setAgencyFeeBps(String(feeBps));
+    setIsDraftAppliedToForm(true);
     toast.success("AI proposal applied to form");
   };
 
@@ -157,12 +231,12 @@ export default function BrandDashboardPage() {
     }
   }, [depositCandidateCampaigns, depositCampaignId]);
 
-  /* ── Shared input style ── */
+  /* Shared input style */
   const inputClass =
     "w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm text-gray-900 font-medium placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]";
   const labelClass = "block text-[11px] font-body font-bold uppercase tracking-widest text-gray-400 mb-1.5";
 
-  /* ── Stats config ── */
+  /* Stats config */
   const stats = [
     { label: "Active", value: summary.activeCampaigns.toString(), icon: BarChart3, color: "#6366f1", bg: "rgba(99,102,241,0.08)", isBnb: false },
     { label: "Budget", value: `${formatEther(summary.totalBudget)} BNB`, icon: Coins, color: "#8b5cf6", bg: "rgba(139,92,246,0.08)", isBnb: true },
@@ -174,7 +248,7 @@ export default function BrandDashboardPage() {
     <RoleGuard allow={["brand"]}>
       <div className="space-y-8">
 
-        {/* ════════ Header ════════ */}
+        {/* Header */}
         <header className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             <div
@@ -213,7 +287,7 @@ export default function BrandDashboardPage() {
           </button>
         </header>
 
-        {/* ════════ Stats Grid ════════ */}
+        {/* Stats Grid */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {stats.map((s) => {
             const Icon = s.icon;
@@ -222,7 +296,6 @@ export default function BrandDashboardPage() {
                 key={s.label}
                 className="glass-card rounded-2xl p-5 relative overflow-hidden group hover:shadow-glass-hover transition-all duration-300 hover:-translate-y-0.5"
               >
-                {/* Accent glow bar */}
                 <div
                   className="absolute bottom-0 left-0 right-0 h-[3px] opacity-60 group-hover:opacity-100 transition-opacity"
                   style={{ background: `linear-gradient(90deg, transparent, ${s.color}, transparent)` }}
@@ -246,7 +319,7 @@ export default function BrandDashboardPage() {
           })}
         </section>
 
-        {/* ════════ Create Campaign Panel ════════ */}
+        {/* Create Campaign Panel */}
         {isCreateOpen && (
           <section
             className="rounded-3xl p-[1px] overflow-hidden"
@@ -255,7 +328,7 @@ export default function BrandDashboardPage() {
             <div className="glass-card rounded-3xl p-6 md:p-8 border-0">
               <div className="grid md:grid-cols-2 gap-8">
 
-                {/* ── Left: AI Brief ── */}
+                {/* Left: AI Brief */}
                 <div className="space-y-5">
                   <div className="flex items-center gap-3">
                     <div className="relative">
@@ -327,7 +400,7 @@ export default function BrandDashboardPage() {
                           <CheckCircle2 size={14} className="text-white" strokeWidth={2.5} />
                         </div>
                         <span className="text-xs font-body font-bold text-emerald-700">
-                          AI Analysis Complete — Confidence {draftResult.confidence.milestonePlan}/10
+                          AI Analysis Complete - Confidence {draftResult.confidence.milestonePlan}/10
                         </span>
                       </div>
                       <p className="text-xs font-body text-emerald-800 leading-relaxed pl-8">{draftResult.brandIntent}</p>
@@ -342,7 +415,7 @@ export default function BrandDashboardPage() {
                   )}
                 </div>
 
-                {/* ── Right: Contract Form ── */}
+                {/* Right: Contract Form */}
                 <div className="space-y-5 md:border-l md:border-gray-100/80 md:pl-8">
                   <div className="flex items-center gap-3">
                     <div className="relative">
@@ -363,6 +436,36 @@ export default function BrandDashboardPage() {
                       <p className="text-[10px] font-body text-gray-400">Deploy on BNB Chain</p>
                     </div>
                   </div>
+
+                  {!draftResult || !isDraftAppliedToForm ? (
+                    <div
+                      className="rounded-xl border px-3.5 py-3 flex items-start gap-2"
+                      style={{
+                        borderColor: "rgba(245,158,11,0.25)",
+                        background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(251,191,36,0.04))"
+                      }}
+                    >
+                      <Lock size={14} className="text-amber-600 mt-0.5" />
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700">AI-Gated Creation</p>
+                        <p className="text-xs text-amber-800 mt-1">Generate and apply AI proposal before creating on-chain campaign.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="rounded-xl border px-3.5 py-3 flex items-start gap-2"
+                      style={{
+                        borderColor: "rgba(16,185,129,0.3)",
+                        background: "linear-gradient(135deg, rgba(16,185,129,0.08), rgba(52,211,153,0.04))"
+                      }}
+                    >
+                      <CheckCircle2 size={14} className="text-emerald-600 mt-0.5" />
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">AI Proposal Ready</p>
+                        <p className="text-xs text-emerald-800 mt-1">Smart contract deployment is unlocked.</p>
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label className={labelClass}>Influencer Address</label>
@@ -386,22 +489,26 @@ export default function BrandDashboardPage() {
                   </div>
 
                   <ContractButton
-                    label="Create On-Chain Campaign"
+                    label={createDisabled ? "Create On-Chain Campaign (Locked)" : "Create On-Chain Campaign"}
                     confirmTitle="Confirm Creation"
                     confirmMessage={`Create campaign for ${formatEther(milestoneInput.total)} BNB?`}
                     onExecute={async () => { await handleCreate(); }}
-                    disabled={!!milestoneInput.error || !agencyFeeInputValid || !influencer}
+                    disabled={createDisabled}
                     className="w-full font-bold"
                     size="lg"
                     color="primary"
                   />
+
+                  {createDisabledReason ? (
+                    <p className="text-[11px] font-body text-amber-700">{createDisabledReason}</p>
+                  ) : null}
                 </div>
               </div>
             </div>
           </section>
         )}
 
-        {/* ════════ Campaign List ════════ */}
+        {/* Campaign List */}
         <section className="space-y-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -423,7 +530,7 @@ export default function BrandDashboardPage() {
               >
                 <div className="animate-spin w-6 h-6 border-[2.5px] border-indigo-200 border-t-indigo-500 rounded-full" />
               </div>
-              <p className="text-sm font-body font-medium text-gray-400">Loading campaigns…</p>
+              <p className="text-sm font-body font-medium text-gray-400">Loading campaigns...</p>
             </div>
           ) : campaigns.length === 0 ? (
             <div
@@ -528,6 +635,4 @@ export default function BrandDashboardPage() {
     </RoleGuard>
   );
 }
-
-
 

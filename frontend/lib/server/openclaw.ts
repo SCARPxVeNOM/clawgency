@@ -10,7 +10,8 @@ const OPENCLAW_WORKFLOW_SCRIPTS = {
   workflow2: "workflows/workflow2-proof-validation.js",
   workflow3: "workflows/workflow3-monitoring.js",
   emailDraft: "workflows/workflow4-email-drafting.js",
-  emailReplyParse: "workflows/workflow5-reply-parsing.js"
+  emailReplyParse: "workflows/workflow5-reply-parsing.js",
+  emailCompletionDraft: "workflows/workflow6-completion-email-drafting.js"
 } as const;
 
 const SAFE_ENV_KEYS = [

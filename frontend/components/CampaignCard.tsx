@@ -1,14 +1,43 @@
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 import { BnbValue } from "@/components/BnbValue";
 import { CampaignView, formatBnb, stateLabel } from "@/lib/campaigns";
 import { useSession } from "@/context/SessionContext";
 import type { RegisteredProfile } from "@/lib/profile-types";
-import { Building2, CheckCircle2, Clock, Coins, TrendingUp, User, Wallet, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, Clock, Coins, ExternalLink, TrendingUp, User, Wallet, XCircle } from "lucide-react";
 
 function shortAddr(v: string) {
   return `${v.slice(0, 6)}...${v.slice(-4)}`;
+}
+
+function shortProof(v: string) {
+  if (v.length <= 44) {
+    return v;
+  }
+
+  return `${v.slice(0, 26)}...${v.slice(-14)}`;
+}
+
+function proofHref(proofHash: string): string | null {
+  const trimmed = proofHash.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith("ipfs://")) {
+    const rawPath = trimmed.slice("ipfs://".length).replace(/^ipfs\//, "").trim();
+    if (!rawPath) {
+      return null;
+    }
+    return `https://ipfs.io/ipfs/${rawPath}`;
+  }
+
+  return null;
 }
 
 type CampaignCardProps = {
@@ -93,6 +122,31 @@ export function CampaignCard({ campaign, actionSlot }: CampaignCardProps) {
 
     return 0;
   })();
+
+  const submittedProofs = campaign.milestones
+    .map((milestone, idx) => {
+      const normalizedProofHash = milestone.proofHash.trim();
+      if (!normalizedProofHash) {
+        return null;
+      }
+
+      const status = milestone.paid ? "Paid" : milestone.approved ? "Approved" : "Awaiting Approval";
+      const statusColor = milestone.paid
+        ? "#10b981"
+        : milestone.approved
+          ? "#6366f1"
+          : "#f59e0b";
+
+      return {
+        key: `proof-${idx}`,
+        milestoneLabel: `M${idx + 1}`,
+        proofHash: normalizedProofHash,
+        href: proofHref(normalizedProofHash),
+        status,
+        statusColor
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
   return (
     <div className="p-6 space-y-5">
@@ -191,6 +245,46 @@ export function CampaignCard({ campaign, actionSlot }: CampaignCardProps) {
             </div>
           ))}
         </div>
+
+        {submittedProofs.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[10px] font-body font-bold uppercase tracking-widest text-gray-400">Submitted Proofs</p>
+            <div className="space-y-2">
+              {submittedProofs.map((proof) => (
+                <div key={proof.key} className="rounded-xl border border-gray-100 bg-white/70 px-3 py-2.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-bold">{proof.milestoneLabel}</span>
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                        style={{ color: proof.statusColor, background: `${proof.statusColor}1A` }}
+                      >
+                        {proof.status}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 font-mono break-all" title={proof.proofHash}>
+                      {shortProof(proof.proofHash)}
+                    </p>
+                  </div>
+
+                  {proof.href ? (
+                    <a
+                      href={proof.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                    >
+                      View
+                      <ExternalLink size={11} />
+                    </a>
+                  ) : (
+                    <span className="shrink-0 text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-500 font-bold">Invalid link</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {actionSlot && (
           <>

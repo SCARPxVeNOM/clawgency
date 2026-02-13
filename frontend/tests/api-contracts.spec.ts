@@ -164,3 +164,50 @@ test("email replies route returns parsed advisory intents", async ({ request }) 
     expect(typeof body.error).toBe("string");
   }
 });
+
+test("proposal email route validates registration + sends via platform backend", async ({ request }) => {
+  const response = await request.post("/api/campaigns/proposal-email", {
+    data: {
+      campaignId: "42",
+      brandWallet: "0x1111111111111111111111111111111111111111",
+      influencerWallet: "0x2222222222222222222222222222222222222222",
+      campaignTitle: "Fitness Challenge",
+      campaignDetails: "1 IG reel + 1 TikTok",
+      budgetBNB: "0.05",
+      ctaUrl: "https://clawgency.xyz/influencer/dashboard?campaignId=42"
+    }
+  });
+
+  expect([200, 400, 500]).toContain(response.status());
+  const body = await response.json();
+
+  if (response.status() === 200) {
+    expect(typeof body.sent.messageId).toBe("string");
+    expect(typeof body.draft.draftId).toBe("string");
+  } else {
+    expect(typeof body.error).toBe("string");
+  }
+});
+
+test("completion email route validates payload and returns clear result", async ({ request }) => {
+  const response = await request.post("/api/campaigns/completion-email", {
+    data: {
+      campaignId: "42",
+      brandWallet: "0x1111111111111111111111111111111111111111",
+      influencerWallet: "0x2222222222222222222222222222222222222222",
+      proofHash: "https://example.com/proof-42",
+      milestoneNumber: 1,
+      campaignTitle: "Fitness Challenge"
+    }
+  });
+
+  expect([200, 400, 500]).toContain(response.status());
+  const body = await response.json();
+
+  if (response.status() === 200) {
+    expect(typeof body.sent.messageId).toBe("string");
+    expect(typeof body.draft.draftId).toBe("string");
+  } else {
+    expect(typeof body.error).toBe("string");
+  }
+});

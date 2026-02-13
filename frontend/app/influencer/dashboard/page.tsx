@@ -81,6 +81,32 @@ export default function InfluencerDashboardPage() {
     campaign.milestones.some((m) => !m.paid && m.proofHash && !m.approved)
   ).length;
 
+  async function sendCompletionEmail(input: {
+    campaignId: bigint;
+    brandWallet: `0x${string}`;
+    influencerWallet: `0x${string}`;
+    proofHash: string;
+    milestoneNumber: number;
+  }) {
+    const response = await fetch("/api/campaigns/completion-email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        campaignId: input.campaignId.toString(),
+        brandWallet: input.brandWallet,
+        influencerWallet: input.influencerWallet,
+        proofHash: input.proofHash,
+        milestoneNumber: input.milestoneNumber,
+        campaignTitle: `Campaign #${input.campaignId.toString()}`
+      })
+    });
+
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    if (!response.ok) {
+      throw new Error(payload?.error ?? "Failed to send completion email.");
+    }
+  }
+
   return (
     <RoleGuard allow={["influencer"]}>
       <div className="space-y-8 max-w-4xl mx-auto">
@@ -215,9 +241,25 @@ export default function InfluencerDashboardPage() {
                         <ProofUploader
                           disabled={proofSubmissionDisabled}
                           onSubmit={async (hash) => {
+                            const nextMilestone = c.milestones.find((milestone) => !milestone.paid && !milestone.proofHash);
+                            const milestoneNumber = nextMilestone ? Number(nextMilestone.index) + 1 : 1;
+
                             await actions.submitProof(c.id, hash);
                             await loadCampaigns({ background: true });
-                            toast.success("Proof submitted on-chain!");
+
+                            try {
+                              await sendCompletionEmail({
+                                campaignId: c.id,
+                                brandWallet: c.brand,
+                                influencerWallet: c.influencer,
+                                proofHash: hash,
+                                milestoneNumber
+                              });
+                              toast.success("Proof submitted and brand notified by email.");
+                            } catch (error) {
+                              const message = error instanceof Error ? error.message : "Completion email failed.";
+                              toast.error(`Proof submitted, but email failed: ${message}`);
+                            }
                           }}
                           onValidate={(hash) => validateProof(c.id, hash)}
                         />
@@ -233,6 +275,7 @@ export default function InfluencerDashboardPage() {
     </RoleGuard>
   );
 }
+
 
 
 
