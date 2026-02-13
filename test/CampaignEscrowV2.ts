@@ -104,4 +104,45 @@ describe("CampaignEscrowV2", function () {
     await expect(contract.connect(brand).releaseFunds(1n))
       .to.be.revertedWithCustomError(contract, "NothingToRelease");
   });
+  it("allows influencer to deny offer and refunds escrow to brand", async function () {
+    const { brand, influencer, contract } = await deployFixture();
+
+    await contract
+      .connect(brand)
+      .createCampaign(brand.address, influencer.address, [ethers.parseEther("1")], 500n);
+    await contract.connect(brand).depositFunds(1n, { value: ethers.parseEther("1") });
+
+    const brandBeforeCancel = await ethers.provider.getBalance(brand.address);
+
+    await expect(contract.connect(influencer).cancelCampaign(1n))
+      .to.emit(contract, "CampaignCancelled")
+      .withArgs(1n, influencer.address, ethers.parseEther("1"));
+
+    const brandAfterCancel = await ethers.provider.getBalance(brand.address);
+    expect(brandAfterCancel - brandBeforeCancel).to.equal(ethers.parseEther("1"));
+
+    const campaignAfterCancel = await contract.getCampaign(1n);
+    expect(campaignAfterCancel[3]).to.equal(0n); // totalEscrowed refunded
+    expect(campaignAfterCancel[7]).to.equal(3n); // Cancelled
+
+    await expect(contract.connect(influencer).submitProof(1n, "ipfs://denied"))
+      .to.be.revertedWithCustomError(contract, "CampaignInactive");
+  });
+
+  it("rejects cancellation after payouts have started", async function () {
+    const { brand, influencer, contract } = await deployFixture();
+
+    await contract
+      .connect(brand)
+      .createCampaign(brand.address, influencer.address, [ethers.parseEther("1"), ethers.parseEther("1")], 500n);
+    await contract.connect(brand).depositFunds(1n, { value: ethers.parseEther("2") });
+
+    await contract.connect(influencer).submitProof(1n, "ipfs://proof-m0");
+    await contract.connect(brand).approveMilestone(1n, 0n);
+    await contract.connect(brand).releaseFunds(1n);
+
+    await expect(contract.connect(influencer).cancelCampaign(1n))
+      .to.be.revertedWithCustomError(contract, "CancellationNotAllowed");
+  });
 });
+

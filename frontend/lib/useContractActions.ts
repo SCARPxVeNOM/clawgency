@@ -18,7 +18,9 @@ const selectorMessageMap: Record<string, string> = {
   "0x26b16294": "No proof found for this milestone yet. Review proof submission first.",
   "0x535ed390": "Milestone is already approved.",
   "0xb10205ed": "No releasable funds. Approve a milestone and ensure escrow is funded.",
-  "0x90b8ec18": "Transfer failed during payout. Try again and confirm recipient wallets."
+  "0x90b8ec18": "Transfer failed during payout. Try again and confirm recipient wallets.",
+  "0xe72b39f9": "Campaign is not active. It may be completed or cancelled.",
+  "0xf558c3f6": "Campaign cannot be cancelled after payouts have started."
 };
 
 function friendlyErrorMessage(error: unknown): string {
@@ -55,7 +57,8 @@ export function useContractActions() {
     | "depositFunds"
     | "submitProof"
     | "approveMilestone"
-    | "releaseFunds";
+    | "releaseFunds"
+    | "cancelCampaign";
 
   async function execute(functionName: ContractFunctionName, args: readonly unknown[], actionLabel: string, value?: bigint) {
     const logId = addLog({
@@ -96,7 +99,12 @@ export function useContractActions() {
       execute("submitProof", [campaignId, proofHash], "Submit Proof"),
     approveMilestone: (campaignId: bigint, milestoneIndex: bigint) =>
       execute("approveMilestone", [campaignId, milestoneIndex], "Approve Milestone"),
-    releaseFunds: (campaignId: bigint) => execute("releaseFunds", [campaignId], "Release Funds")
+    releaseFunds: (campaignId: bigint) => execute("releaseFunds", [campaignId], "Release Funds"),
+    cancelCampaign: (campaignId: bigint) => execute("cancelCampaign", [campaignId], "Cancel Campaign")
   };
 }
+
+
+
+
 

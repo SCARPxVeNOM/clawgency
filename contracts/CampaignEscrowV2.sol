@@ -67,6 +67,7 @@ contract CampaignEscrowV2 is Ownable, ReentrancyGuard, Pausable {
         uint256 influencerAmount,
         uint256 agencyFeeAmount
     );
+    event CampaignCancelled(uint256 indexed campaignId, address indexed actor, uint256 refundedAmount);
 
     error CampaignNotFound(uint256 campaignId);
     error InvalidAddress();
@@ -79,6 +80,8 @@ contract CampaignEscrowV2 is Ownable, ReentrancyGuard, Pausable {
     error MilestoneAlreadyApproved();
     error NothingToRelease();
     error TransferFailed();
+    error CampaignInactive();
+    error CancellationNotAllowed();
 
     /// @notice Creates the escrow contract with an agency treasury owner.
     /// @param initialOwner Address that receives agency fees and administrative rights.
@@ -146,6 +149,9 @@ contract CampaignEscrowV2 is Ownable, ReentrancyGuard, Pausable {
         if (msg.sender != campaign.brand) {
             revert Unauthorized();
         }
+        if (campaign.state == CampaignState.Completed || campaign.state == CampaignState.Cancelled) {
+            revert CampaignInactive();
+        }
         if (msg.value == 0) {
             revert InvalidMilestoneConfiguration();
         }
@@ -165,6 +171,9 @@ contract CampaignEscrowV2 is Ownable, ReentrancyGuard, Pausable {
         Campaign storage campaign = _campaign(campaignId);
         if (msg.sender != campaign.influencer) {
             revert Unauthorized();
+        }
+        if (campaign.state == CampaignState.Completed || campaign.state == CampaignState.Cancelled) {
+            revert CampaignInactive();
         }
         if (bytes(proofHash).length == 0) {
             revert EmptyProofHash();
@@ -187,6 +196,9 @@ contract CampaignEscrowV2 is Ownable, ReentrancyGuard, Pausable {
         if (msg.sender != campaign.brand) {
             revert Unauthorized();
         }
+        if (campaign.state == CampaignState.Completed || campaign.state == CampaignState.Cancelled) {
+            revert CampaignInactive();
+        }
         if (milestoneIndex >= campaign.milestoneAmounts.length) {
             revert InvalidMilestoneIndex();
         }
@@ -208,6 +220,9 @@ contract CampaignEscrowV2 is Ownable, ReentrancyGuard, Pausable {
         Campaign storage campaign = _campaign(campaignId);
         if (msg.sender != campaign.brand) {
             revert Unauthorized();
+        }
+        if (campaign.state == CampaignState.Completed || campaign.state == CampaignState.Cancelled) {
+            revert CampaignInactive();
         }
 
         uint256 releasableGross;
@@ -245,6 +260,36 @@ contract CampaignEscrowV2 is Ownable, ReentrancyGuard, Pausable {
         emit FundsReleased(campaignId, releasableGross, influencerAmount, agencyFeeAmount);
     }
 
+    /// @notice Cancels an active campaign before any payout is released.
+    /// @dev Creator can deny offer; brand can also cancel. Escrowed funds are refunded to brand.
+    /// @param campaignId Campaign identifier.
+    function cancelCampaign(uint256 campaignId) external nonReentrant whenNotPaused {
+        Campaign storage campaign = _campaign(campaignId);
+        if (msg.sender != campaign.brand && msg.sender != campaign.influencer) {
+            revert Unauthorized();
+        }
+        if (campaign.state == CampaignState.Completed || campaign.state == CampaignState.Cancelled) {
+            revert CampaignInactive();
+        }
+        if (campaign.totalReleased > 0) {
+            revert CancellationNotAllowed();
+        }
+
+        uint256 refundable = campaign.totalEscrowed;
+        campaign.totalEscrowed = 0;
+        campaign.state = CampaignState.Cancelled;
+
+        for (uint256 i = 0; i < campaign.milestoneAmounts.length; i++) {
+            campaign.milestoneApproved[i] = false;
+            campaign.milestoneProofHashes[i] = "";
+        }
+
+        if (refundable > 0) {
+            payable(campaign.brand).sendValue(refundable);
+        }
+
+        emit CampaignCancelled(campaignId, msg.sender, refundable);
+    }
     /// @notice Returns campaign metadata for dashboard rendering.
     function getCampaign(
         uint256 campaignId
@@ -320,3 +365,10 @@ contract CampaignEscrowV2 is Ownable, ReentrancyGuard, Pausable {
         return campaign.milestoneAmounts.length;
     }
 }
+
+
+
+
+
+
+

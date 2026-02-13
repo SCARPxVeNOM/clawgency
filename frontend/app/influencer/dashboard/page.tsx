@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Clock, AlertCircle, CheckCircle, Sparkles, FileCheck, Upload, Zap } from "lucide-react";
 import { CampaignCard } from "@/components/CampaignCard";
+import { ContractButton } from "@/components/ContractButton";
 import { ProofUploader } from "@/components/ProofUploader";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useSession } from "@/context/SessionContext";
@@ -170,36 +171,61 @@ export default function InfluencerDashboardPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {campaigns.map((c) => (
-                <div key={c.id.toString()} className="space-y-3">
-                  {/* Campaign Card */}
-                  <div className="glass-card rounded-2xl overflow-hidden">
-                    <CampaignCard campaign={c} />
-                  </div>
+              {campaigns.map((c) => {
+                const canDenyOffer = c.state !== 2 && c.state !== 3 && c.totalReleased === 0n;
+                const proofSubmissionDisabled = c.state === 2 || c.state === 3;
 
-                  {/* Proof Uploader */}
-                  <div className="ml-5 pl-5 border-l-2 border-indigo-100">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "rgba(99,102,241,0.08)" }}>
-                        <Upload size={11} className="text-indigo-500" />
-                      </div>
-                      <p className="text-[10px] font-body font-bold uppercase tracking-[0.15em] text-gray-400">
-                        Submit Proof
-                      </p>
-                    </div>
-                    <div className="glass-card rounded-xl p-4">
-                      <ProofUploader
-                        onSubmit={async (hash) => {
-                          await actions.submitProof(c.id, hash);
-                          await loadCampaigns({ background: true });
-                          toast.success("Proof submitted on-chain!");
-                        }}
-                        onValidate={(hash) => validateProof(c.id, hash)}
+                return (
+                  <div key={c.id.toString()} className="space-y-3">
+                    {/* Campaign Card */}
+                    <div className="glass-card rounded-2xl overflow-hidden">
+                      <CampaignCard
+                        campaign={c}
+                        actionSlot={
+                          canDenyOffer ? (
+                            <ContractButton
+                              label="Deny Offer"
+                              confirmTitle="Deny Campaign Offer"
+                              confirmMessage="Deny this campaign offer? Escrowed funds will be refunded to the brand."
+                              onExecute={async () => {
+                                await actions.cancelCampaign(c.id);
+                                await loadCampaigns({ background: true });
+                                toast.success("Campaign offer denied.");
+                              }}
+                              color="danger"
+                              variant="flat"
+                              size="sm"
+                            />
+                          ) : undefined
+                        }
                       />
                     </div>
+
+                    {/* Proof Uploader */}
+                    <div className="ml-5 pl-5 border-l-2 border-indigo-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "rgba(99,102,241,0.08)" }}>
+                          <Upload size={11} className="text-indigo-500" />
+                        </div>
+                        <p className="text-[10px] font-body font-bold uppercase tracking-[0.15em] text-gray-400">
+                          Submit Proof
+                        </p>
+                      </div>
+                      <div className="glass-card rounded-xl p-4">
+                        <ProofUploader
+                          disabled={proofSubmissionDisabled}
+                          onSubmit={async (hash) => {
+                            await actions.submitProof(c.id, hash);
+                            await loadCampaigns({ background: true });
+                            toast.success("Proof submitted on-chain!");
+                          }}
+                          onValidate={(hash) => validateProof(c.id, hash)}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
@@ -207,4 +233,6 @@ export default function InfluencerDashboardPage() {
     </RoleGuard>
   );
 }
+
+
 

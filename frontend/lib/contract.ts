@@ -59,6 +59,13 @@ export const campaignEscrowV2Abi = [
   },
   {
     type: "function",
+    name: "cancelCampaign",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "campaignId", type: "uint256" }],
+    outputs: []
+  },
+  {
+    type: "function",
     name: "getCampaign",
     stateMutability: "view",
     inputs: [{ name: "campaignId", type: "uint256" }],
@@ -142,7 +149,19 @@ export const campaignEscrowV2Abi = [
       { indexed: false, name: "influencerAmount", type: "uint256" },
       { indexed: false, name: "agencyFeeAmount", type: "uint256" }
     ]
+  },
+  {
+    type: "event",
+    name: "CampaignCancelled",
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "campaignId", type: "uint256" },
+      { indexed: true, name: "actor", type: "address" },
+      { indexed: false, name: "refundedAmount", type: "uint256" }
+    ]
   }
 ] as const;
 
 export const isContractConfigured = campaignEscrowV2Address.toLowerCase() !== ZERO_ADDRESS;
+
+
