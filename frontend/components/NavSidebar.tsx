@@ -168,7 +168,7 @@ export function NavSidebar({ isOpen, onClose }: NavSidebarProps) {
                                 <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
                             </div>
                             <div className="rainbow-btn-wrapper">
-                                <ConnectButton showBalance={false} accountStatus="full" chainStatus="icon" />
+                                <ConnectButton showBalance={true} accountStatus="full" chainStatus="icon" />
                             </div>
                         </div>
                     </div>
@@ -177,3 +177,4 @@ export function NavSidebar({ isOpen, onClose }: NavSidebarProps) {
         </>
     );
 }
+

@@ -27,38 +27,46 @@ export default function BrandDashboardPage() {
 
   // Form States
   const [influencer, setInfluencer] = useState("");
-  const [milestonesCsv, setMilestonesCsv] = useState("0.3,0.3,0.4");
+  const [milestonesCsv, setMilestonesCsv] = useState("0.02,0.015,0.015");
   const [agencyFeeBps, setAgencyFeeBps] = useState("500");
   const [depositCampaignId, setDepositCampaignId] = useState("");
 
   // AI Draft States
   const [draftHeadline, setDraftHeadline] = useState("Need fitness influencer");
-  const [draftBudgetBnb, setDraftBudgetBnb] = useState("1");
+  const [draftBudgetBnb, setDraftBudgetBnb] = useState("0.05");
   const [draftDeliverables, setDraftDeliverables] = useState("Instagram reel + TikTok");
   const [draftTimeline, setDraftTimeline] = useState("3 days");
   const draftBrandAddr = "0x1111111111111111111111111111111111111111";
   const [draftResult, setDraftResult] = useState<Workflow1Response | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
 
-  const loadCampaigns = useCallback(async () => {
+  const loadCampaigns = useCallback(async (options?: { background?: boolean }) => {
+    const isBackgroundRefresh = options?.background === true;
+
     if (!isContractConfigured || !walletAddress) {
       setCampaigns([]);
       setLoading(false);
       return;
     }
-    setLoading(true);
+
+    if (!isBackgroundRefresh) {
+      setLoading(true);
+    }
+
     try {
       const all = await fetchAllCampaigns();
       setCampaigns(all.filter((c) => c.brand.toLowerCase() === walletAddress.toLowerCase()));
     } finally {
-      setLoading(false);
+      if (!isBackgroundRefresh) {
+        setLoading(false);
+      }
     }
   }, [walletAddress]);
 
   useEffect(() => {
     void loadCampaigns();
-    const stopWatching = subscribeCampaignEvents(() => { void loadCampaigns(); });
-    const interval = setInterval(() => void loadCampaigns(), 12_000);
+    const stopWatching = subscribeCampaignEvents(() => { void loadCampaigns({ background: true }); });
+    const interval = setInterval(() => void loadCampaigns({ background: true }), 12_000);
     return () => { stopWatching(); clearInterval(interval); };
   }, [loadCampaigns]);
 
@@ -104,6 +112,7 @@ export default function BrandDashboardPage() {
       milestoneInput.milestones,
       Number(agencyFeeBps)
     );
+    await loadCampaigns({ background: true });
     setIsCreateOpen(false);
   };
 
@@ -150,7 +159,7 @@ export default function BrandDashboardPage() {
 
   /* ── Shared input style ── */
   const inputClass =
-    "w-full px-4 py-2.5 rounded-xl bg-white/60 border border-gray-200 text-sm font-body text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all";
+    "w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm text-gray-900 font-medium placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]";
   const labelClass = "block text-[11px] font-body font-bold uppercase tracking-widest text-gray-400 mb-1.5";
 
   /* ── Stats config ── */
@@ -167,28 +176,39 @@ export default function BrandDashboardPage() {
 
         {/* ════════ Header ════════ */}
         <header className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl" style={{ background: "rgba(99,102,241,0.08)" }}>
-              <Building2 size={22} className="text-indigo-500" strokeWidth={2} />
+          <div className="flex items-center gap-4">
+            <div
+              className="p-3 rounded-2xl relative overflow-hidden"
+              style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))" }}
+            >
+              <Building2 size={24} className="text-indigo-600" strokeWidth={1.8} />
+              <div className="absolute inset-0 rounded-2xl" style={{ boxShadow: "inset 0 0 0 1px rgba(99,102,241,0.15)" }} />
             </div>
             <div>
-              <h1 className="text-2xl font-heading font-bold text-gray-900 tracking-tight">Brand Dashboard</h1>
-              <p className="text-sm font-body text-gray-400 font-medium mt-0.5">Manage campaigns & escrow</p>
+              <h1 className="text-2xl font-heading font-bold tracking-tight bg-gradient-to-r from-gray-900 via-indigo-900 to-gray-900 bg-clip-text text-transparent">
+                Brand Dashboard
+              </h1>
+              <p className="text-xs font-body text-gray-400 font-medium mt-0.5 tracking-wide">
+                Manage campaigns &amp; escrow
+              </p>
             </div>
           </div>
 
           <button
             onClick={() => setIsCreateOpen(!isCreateOpen)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-body font-semibold transition-all"
+            className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-body font-bold transition-all duration-200 hover:shadow-md"
             style={{
-              background: isCreateOpen ? "rgba(239,68,68,0.08)" : "rgba(99,102,241,0.08)",
+              background: isCreateOpen
+                ? "linear-gradient(135deg, rgba(239,68,68,0.1), rgba(239,68,68,0.05))"
+                : "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))",
               color: isCreateOpen ? "#ef4444" : "#6366f1",
+              border: `1px solid ${isCreateOpen ? "rgba(239,68,68,0.15)" : "rgba(99,102,241,0.15)"}`,
             }}
           >
             {isCreateOpen ? (
-              <><ChevronUp size={16} strokeWidth={2.5} /> Close</>
+              <><ChevronUp size={16} strokeWidth={2.5} className="group-hover:-translate-y-0.5 transition-transform" /> Close</>
             ) : (
-              <><Plus size={16} strokeWidth={2.5} /> New Campaign</>
+              <><Plus size={16} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform" /> New Campaign</>
             )}
           </button>
         </header>
@@ -198,14 +218,27 @@ export default function BrandDashboardPage() {
           {stats.map((s) => {
             const Icon = s.icon;
             return (
-              <div key={s.label} className="glass-card rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: s.bg }}>
-                    <Icon size={15} strokeWidth={2} style={{ color: s.color }} />
+              <div
+                key={s.label}
+                className="glass-card rounded-2xl p-5 relative overflow-hidden group hover:shadow-glass-hover transition-all duration-300 hover:-translate-y-0.5"
+              >
+                {/* Accent glow bar */}
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-[3px] opacity-60 group-hover:opacity-100 transition-opacity"
+                  style={{ background: `linear-gradient(90deg, transparent, ${s.color}, transparent)` }}
+                />
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center ring-1 ring-inset"
+                    style={{ background: s.bg, boxShadow: `0 0 12px ${s.color}15` }}
+                  >
+                    <Icon size={16} strokeWidth={2} style={{ color: s.color }} />
                   </div>
-                  <p className="text-[10px] font-body font-bold uppercase tracking-widest text-gray-400">{s.label}</p>
+                  <p className="text-[10px] font-body font-bold uppercase tracking-[0.15em] text-gray-400">
+                    {s.label}
+                  </p>
                 </div>
-                <p className="text-xl font-heading font-bold text-gray-900">
+                <p className="text-2xl font-heading font-bold text-gray-900">
                   {s.isBnb ? <BnbValue amount={s.value} /> : s.value}
                 </p>
               </div>
@@ -215,120 +248,154 @@ export default function BrandDashboardPage() {
 
         {/* ════════ Create Campaign Panel ════════ */}
         {isCreateOpen && (
-          <section className="glass-card rounded-3xl p-6 md:p-8 space-y-6">
-            <div className="grid md:grid-cols-2 gap-8">
+          <section
+            className="rounded-3xl p-[1px] overflow-hidden"
+            style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.1), rgba(16,185,129,0.1))" }}
+          >
+            <div className="glass-card rounded-3xl p-6 md:p-8 border-0">
+              <div className="grid md:grid-cols-2 gap-8">
 
-              {/* ── Left: AI Brief ── */}
-              <div className="space-y-5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(139,92,246,0.1)" }}>
-                    <Sparkles size={16} strokeWidth={2} className="text-purple-500" />
+                {/* ── Left: AI Brief ── */}
+                <div className="space-y-5">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center"
+                        style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(168,85,247,0.08))" }}
+                      >
+                        <Sparkles size={18} strokeWidth={2} className="text-purple-500" />
+                      </div>
+                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-purple-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm">
+                        1
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-heading font-bold bg-gradient-to-r from-purple-700 to-indigo-600 bg-clip-text text-transparent">
+                        AI Brief
+                      </h3>
+                      <p className="text-[10px] font-body text-gray-400">Let AI analyze your campaign</p>
+                    </div>
                   </div>
+
                   <div>
-                    <h3 className="text-sm font-heading font-bold text-gray-900">AI Brief</h3>
-                    <p className="text-[10px] font-body text-gray-400">Let AI analyze your campaign</p>
+                    <label className={labelClass}>Headline</label>
+                    <input className={inputClass} placeholder="e.g. Need fitness influencer" value={draftHeadline} onChange={(e) => setDraftHeadline(e.target.value)} />
                   </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Budget (BNB)</label>
+                      <input className={inputClass} placeholder="1.0" value={draftBudgetBnb} onChange={(e) => setDraftBudgetBnb(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Timeline</label>
+                      <input className={inputClass} placeholder="3 days" value={draftTimeline} onChange={(e) => setDraftTimeline(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Deliverables</label>
+                    <textarea
+                      className={`${inputClass} resize-none`}
+                      rows={3}
+                      placeholder="Instagram reel + TikTok"
+                      value={draftDeliverables}
+                      onChange={(e) => setDraftDeliverables(e.target.value)}
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => void handleDrafting()}
+                    disabled={draftLoading}
+                    className="w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-xl text-sm font-body font-bold text-white transition-all disabled:opacity-50 hover:shadow-lg hover:shadow-purple-500/20 hover:-translate-y-0.5 active:translate-y-0"
+                    style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1, #4f46e5)" }}
+                  >
+                    {draftLoading ? (
+                      <><span className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" /> Analyzing...</>
+                    ) : (
+                      <><Sparkles size={15} /> Generate AI Proposal</>
+                    )}
+                  </button>
+
+                  {draftResult && (
+                    <div
+                      className="rounded-xl p-4 space-y-3 ring-1 ring-inset ring-emerald-200/60"
+                      style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.08), rgba(52,211,153,0.04))" }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
+                          <CheckCircle2 size={14} className="text-white" strokeWidth={2.5} />
+                        </div>
+                        <span className="text-xs font-body font-bold text-emerald-700">
+                          AI Analysis Complete — Confidence {draftResult.confidence.milestonePlan}/10
+                        </span>
+                      </div>
+                      <p className="text-xs font-body text-emerald-800 leading-relaxed pl-8">{draftResult.brandIntent}</p>
+                      <button
+                        onClick={applyDraftToForm}
+                        className="w-full flex items-center justify-center gap-2 rounded-lg text-white text-xs font-bold py-2.5 transition-all hover:shadow-md hover:shadow-emerald-500/20 hover:-translate-y-0.5"
+                        style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}
+                      >
+                        <CheckCircle2 size={13} /> Apply Proposal To Form
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label className={labelClass}>Headline</label>
-                  <input className={inputClass} placeholder="e.g. Need fitness influencer" value={draftHeadline} onChange={(e) => setDraftHeadline(e.target.value)} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={labelClass}>Budget (BNB)</label>
-                    <input className={inputClass} placeholder="1.0" value={draftBudgetBnb} onChange={(e) => setDraftBudgetBnb(e.target.value)} />
+                {/* ── Right: Contract Form ── */}
+                <div className="space-y-5 md:border-l md:border-gray-100/80 md:pl-8">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center"
+                        style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(79,70,229,0.08))" }}
+                      >
+                        <Wallet size={18} strokeWidth={2} className="text-indigo-500" />
+                      </div>
+                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-indigo-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm">
+                        2
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-heading font-bold bg-gradient-to-r from-indigo-700 to-violet-600 bg-clip-text text-transparent">
+                        Smart Contract
+                      </h3>
+                      <p className="text-[10px] font-body text-gray-400">Deploy on BNB Chain</p>
+                    </div>
                   </div>
-                  <div>
-                    <label className={labelClass}>Timeline</label>
-                    <input className={inputClass} placeholder="3 days" value={draftTimeline} onChange={(e) => setDraftTimeline(e.target.value)} />
-                  </div>
-                </div>
 
-                <div>
-                  <label className={labelClass}>Deliverables</label>
-                  <textarea
-                    className={`${inputClass} resize-none`}
-                    rows={3}
-                    placeholder="Instagram reel + TikTok"
-                    value={draftDeliverables}
-                    onChange={(e) => setDraftDeliverables(e.target.value)}
+                  <div>
+                    <label className={labelClass}>Influencer Address</label>
+                    <input className={`${inputClass} font-mono`} placeholder="Influencer wallet" value={influencer} onChange={(e) => setInfluencer(e.target.value)} />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Milestones (BNB)</label>
+                    <input className={`${inputClass} font-mono`} placeholder="Milestones in BNB, comma-separated" value={milestonesCsv} onChange={(e) => setMilestonesCsv(e.target.value)} />
+                    <p className="text-[10px] font-body text-gray-400 mt-1.5 flex items-center gap-1">
+                      Total: <BnbValue amount={`${formatEther(milestoneInput.total)} BNB`} className="font-semibold text-gray-600" />
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Agency Fee (BPS)</label>
+                    <input className={`${inputClass} font-mono`} placeholder="Agency fee in bps (e.g. 500)" value={agencyFeeBps} onChange={(e) => setAgencyFeeBps(e.target.value)} />
+                    {agencyFeeInputValid && Number(agencyFeeBps) > 0 && (
+                      <p className="text-[10px] font-body text-gray-400 mt-1">{(Number(agencyFeeBps) / 100).toFixed(1)}% fee</p>
+                    )}
+                  </div>
+
+                  <ContractButton
+                    label="Create On-Chain Campaign"
+                    confirmTitle="Confirm Creation"
+                    confirmMessage={`Create campaign for ${formatEther(milestoneInput.total)} BNB?`}
+                    onExecute={async () => { await handleCreate(); }}
+                    disabled={!!milestoneInput.error || !agencyFeeInputValid || !influencer}
+                    className="w-full font-bold"
+                    size="lg"
+                    color="primary"
                   />
                 </div>
-
-                <button
-                  onClick={() => void handleDrafting()}
-                  disabled={draftLoading}
-                  className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-body font-semibold text-white transition-all disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)" }}
-                >
-                  {draftLoading ? (
-                    <><span className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" /> Analyzing...</>
-                  ) : (
-                    <><Sparkles size={15} /> Generate AI Proposal</>
-                  )}
-                </button>
-
-                {draftResult && (
-                  <div className="border border-emerald-200 rounded-xl p-3 space-y-2" style={{ background: "rgba(16,185,129,0.06)" }}>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 size={16} className="text-emerald-500" strokeWidth={2.5} />
-                      <span className="text-xs font-body font-semibold text-emerald-700">
-                        AI Analysis Complete - Confidence {draftResult.confidence.milestonePlan}/10
-                      </span>
-                    </div>
-                    <p className="text-xs font-body text-emerald-800">{draftResult.brandIntent}</p>
-                    <button onClick={applyDraftToForm} className="w-full rounded-lg bg-emerald-600 text-white text-xs font-bold py-2">
-                      Apply Proposal To Form
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* ── Divider ── */}
-              <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-gray-100" style={{ position: "relative", width: 0, margin: "0 -16px" }}>
-                <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-100" />
-              </div>
-
-              {/* ── Right: Contract Form ── */}
-              <div className="space-y-5 md:border-l md:border-gray-100 md:pl-8">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
-                    <Wallet size={16} strokeWidth={2} className="text-indigo-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-heading font-bold text-gray-900">Smart Contract</h3>
-                    <p className="text-[10px] font-body text-gray-400">Deploy on BNB Chain</p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className={labelClass}>Influencer Address</label>
-                  <input className={`${inputClass} font-mono`} placeholder="Influencer wallet" value={influencer} onChange={(e) => setInfluencer(e.target.value)} />
-                </div>
-
-                <div>
-                  <label className={labelClass}>Milestones (BNB)</label>
-                  <input className={`${inputClass} font-mono`} placeholder="Milestones in BNB, comma-separated" value={milestonesCsv} onChange={(e) => setMilestonesCsv(e.target.value)} />
-                  <p className="text-[10px] font-body text-gray-400 mt-1">Total: {formatEther(milestoneInput.total)} BNB</p>
-                </div>
-
-                <div>
-                  <label className={labelClass}>Agency Fee (BPS)</label>
-                  <input className={`${inputClass} font-mono`} placeholder="Agency fee in bps (e.g. 500)" value={agencyFeeBps} onChange={(e) => setAgencyFeeBps(e.target.value)} />
-                </div>
-
-                <ContractButton
-                  label="Create On-Chain Campaign"
-                  confirmTitle="Confirm Creation"
-                  confirmMessage={`Create campaign for ${formatEther(milestoneInput.total)} BNB?`}
-                  onExecute={async () => { await handleCreate(); }}
-                  disabled={!!milestoneInput.error || !agencyFeeInputValid || !influencer}
-                  className="w-full font-bold"
-                  size="lg"
-                  color="primary"
-                />
               </div>
             </div>
           </section>
@@ -336,73 +403,124 @@ export default function BrandDashboardPage() {
 
         {/* ════════ Campaign List ════════ */}
         <section className="space-y-5">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-heading font-bold text-gray-900">Your Campaigns</h2>
-            <span className="text-xs font-body font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-              {campaigns.length}
-            </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-heading font-bold text-gray-900">Your Campaigns</h2>
+              <span
+                className="text-[10px] font-body font-bold px-2.5 py-1 rounded-full"
+                style={{ background: "rgba(99,102,241,0.08)", color: "#6366f1" }}
+              >
+                {campaigns.length}
+              </span>
+            </div>
           </div>
 
           {loading ? (
             <div className="glass-card rounded-3xl p-16 text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4" style={{ background: "rgba(99,102,241,0.08)" }}>
-                <div className="animate-spin w-5 h-5 border-2 border-indigo-200 border-t-indigo-500 rounded-full" />
+              <div
+                className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
+                style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06))" }}
+              >
+                <div className="animate-spin w-6 h-6 border-[2.5px] border-indigo-200 border-t-indigo-500 rounded-full" />
               </div>
-              <p className="text-sm font-body text-gray-400">Loading campaigns...</p>
+              <p className="text-sm font-body font-medium text-gray-400">Loading campaigns…</p>
             </div>
           ) : campaigns.length === 0 ? (
-            <div className="glass-card rounded-3xl p-16 text-center border border-dashed border-gray-200">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ background: "rgba(99,102,241,0.08)" }}>
-                <Send size={24} className="text-indigo-400" strokeWidth={1.5} />
+            <div
+              className="glass-card rounded-3xl p-16 text-center relative overflow-hidden"
+              style={{ border: "1.5px dashed rgba(99,102,241,0.2)" }}
+            >
+              <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(circle at 50% 0%, rgba(99,102,241,0.08), transparent 60%)" }} />
+              <div className="relative">
+                <div
+                  className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5"
+                  style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.06))" }}
+                >
+                  <Send size={26} className="text-indigo-400" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-xl font-heading font-bold text-gray-900 mb-2">No campaigns yet</h3>
+                <p className="text-sm font-body text-gray-400 mb-6 max-w-[280px] mx-auto leading-relaxed">
+                  Create your first campaign to start managing influencer partnerships on-chain.
+                </p>
+                <button
+                  onClick={() => setIsCreateOpen(true)}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-body font-bold transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))", color: "#6366f1" }}
+                >
+                  <Plus size={15} strokeWidth={2.5} /> Create Campaign
+                </button>
               </div>
-              <h3 className="text-lg font-heading font-bold text-gray-900 mb-2">No campaigns yet</h3>
-              <p className="text-sm font-body text-gray-400 mb-5 max-w-xs mx-auto">Create your first campaign to start managing influencer partnerships on-chain.</p>
-              <button
-                onClick={() => setIsCreateOpen(true)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-body font-semibold text-indigo-600"
-                style={{ background: "rgba(99,102,241,0.08)" }}
-              >
-                <Plus size={15} strokeWidth={2.5} /> Create Campaign
-              </button>
             </div>
           ) : (
             <div className="grid gap-5">
-              {campaigns.map((c) => (
-                <div key={c.id.toString()} className="glass-card rounded-2xl overflow-hidden">
-                  <CampaignCard
-                    campaign={c}
-                    actionSlot={
-                      <div className="flex flex-wrap gap-2 w-full justify-end">
-                        {c.totalEscrowed < c.totalMilestoneAmount && (
+              {campaigns.map((c) => {
+                const pendingApprovalMilestone = c.milestones.find(
+                  (m) => !m.paid && !m.approved && m.proofHash.length > 0
+                );
+                const releasableAmount = c.milestones.reduce((sum, m) => (m.approved && !m.paid ? sum + m.amount : sum), 0n);
+
+                return (
+                  <div
+                    key={c.id.toString()}
+                    className="glass-card rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-glass-hover hover:-translate-y-0.5"
+                  >
+                    <CampaignCard
+                      campaign={c}
+                      actionSlot={
+                        <div className="flex flex-wrap gap-2 w-full justify-end">
+                          {c.totalEscrowed < c.totalMilestoneAmount && (
+                            <ContractButton
+                              label="Deposit"
+                              confirmTitle="Fund Escrow"
+                              confirmMessage="Deposit remaining funds?"
+                              onExecute={async () => {
+                                const remaining = c.totalMilestoneAmount - c.totalEscrowed;
+                                await actions.depositFunds(c.id, formatEther(remaining));
+                                await loadCampaigns({ background: true });
+                              }}
+                              variant="flat"
+                              color="default"
+                              size="sm"
+                            />
+                          )}
+                          {pendingApprovalMilestone && (
+                            <ContractButton
+                              label={`Approve M${Number(pendingApprovalMilestone.index) + 1}`}
+                              confirmTitle="Approve Milestone"
+                              confirmMessage={`Approve milestone ${Number(pendingApprovalMilestone.index) + 1} for payout eligibility?`}
+                              onExecute={async () => {
+                                await actions.approveMilestone(c.id, pendingApprovalMilestone.index);
+                                await loadCampaigns({ background: true });
+                              }}
+                              color="primary"
+                              variant="flat"
+                              size="sm"
+                            />
+                          )}
                           <ContractButton
-                            label="Deposit"
-                            confirmTitle="Fund Escrow"
-                            confirmMessage="Deposit remaining funds?"
+                            label="Release"
+                            confirmTitle="Release Funds"
+                            confirmMessage={
+                              releasableAmount > 0n
+                                ? `Release ${formatEther(releasableAmount)} BNB across approved milestones?`
+                                : "Attempt release now? If nothing is approved yet, the transaction will fail with a clear reason."
+                            }
                             onExecute={async () => {
-                              const remaining = c.totalMilestoneAmount - c.totalEscrowed;
-                              await actions.depositFunds(c.id, formatEther(remaining));
+                              await actions.releaseFunds(c.id);
+                              await loadCampaigns({ background: true });
                             }}
-                            variant="flat"
-                            color="default"
+                            disabled={c.state === 2 || c.state === 3}
+                            color="success"
+                            variant="shadow"
                             size="sm"
+                            className="text-white font-bold"
                           />
-                        )}
-                        <ContractButton
-                          label="Release"
-                          confirmTitle="Release Funds"
-                          confirmMessage="Release all approved payments?"
-                          onExecute={async () => { await actions.releaseFunds(c.id); }}
-                          disabled={!c.milestones.some((m) => m.approved && !m.paid)}
-                          color="success"
-                          variant="solid"
-                          size="sm"
-                          className="text-white"
-                        />
-                      </div>
-                    }
-                  />
-                </div>
-              ))}
+                        </div>
+                      }
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
@@ -410,3 +528,6 @@ export default function BrandDashboardPage() {
     </RoleGuard>
   );
 }
+
+
+

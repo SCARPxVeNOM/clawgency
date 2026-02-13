@@ -18,26 +18,33 @@ export default function InfluencerDashboardPage() {
   const [campaigns, setCampaigns] = useState<CampaignView[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadCampaigns = useCallback(async () => {
+  const loadCampaigns = useCallback(async (options?: { background?: boolean }) => {
+    const isBackgroundRefresh = options?.background === true;
+
     if (!walletAddress || !isContractConfigured) {
       setCampaigns([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (!isBackgroundRefresh) {
+      setLoading(true);
+    }
+
     try {
       const all = await fetchAllCampaigns();
       setCampaigns(all.filter((c) => c.influencer.toLowerCase() === walletAddress.toLowerCase()));
     } finally {
-      setLoading(false);
+      if (!isBackgroundRefresh) {
+        setLoading(false);
+      }
     }
   }, [walletAddress]);
 
   useEffect(() => {
     void loadCampaigns();
-    const stop = subscribeCampaignEvents(() => void loadCampaigns());
-    const interval = setInterval(() => void loadCampaigns(), 12_000);
+    const stop = subscribeCampaignEvents(() => void loadCampaigns({ background: true }));
+    const interval = setInterval(() => void loadCampaigns({ background: true }), 12_000);
     return () => {
       stop();
       clearInterval(interval);
@@ -184,6 +191,7 @@ export default function InfluencerDashboardPage() {
                       <ProofUploader
                         onSubmit={async (hash) => {
                           await actions.submitProof(c.id, hash);
+                          await loadCampaigns({ background: true });
                           toast.success("Proof submitted on-chain!");
                         }}
                         onValidate={(hash) => validateProof(c.id, hash)}
@@ -199,3 +207,4 @@ export default function InfluencerDashboardPage() {
     </RoleGuard>
   );
 }
+

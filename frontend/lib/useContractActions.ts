@@ -74,7 +74,10 @@ export function useContractActions() {
       });
 
       updateLog(logId, { txHash: hash, detail: "Transaction submitted" });
-      await waitForTransactionReceipt(wagmiConfig, { hash });
+      const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+      if (receipt.status !== "success") {
+        throw new Error("Transaction reverted on-chain. No state change was applied.");
+      }
       updateLog(logId, { status: "confirmed", detail: "Transaction confirmed" });
       return hash;
     } catch (error) {
@@ -96,3 +99,4 @@ export function useContractActions() {
     releaseFunds: (campaignId: bigint) => execute("releaseFunds", [campaignId], "Release Funds")
   };
 }
+

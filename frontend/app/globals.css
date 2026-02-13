@@ -16,6 +16,13 @@
     background-attachment: fixed;
     color: #1a1a2e;
   }
+
+  input,
+  textarea,
+  select,
+  button {
+    font-family: inherit;
+  }
 }
 
 /* ==================== GLASSMORPHISM UTILITIES ==================== */

@@ -114,28 +114,43 @@ export function CampaignCard({ campaign, actionSlot }: CampaignCardProps) {
       </div>
 
       {/* ── Milestones Section ── */}
-      <div className="border border-gray-100 rounded-2xl p-4 bg-white/50">
-        <p className="text-[10px] font-body font-bold uppercase tracking-widest text-gray-400 mb-3">Milestones</p>
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            {campaign.milestones.map((m, idx) => (
-              <div
-                key={idx}
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold transition-all"
-                style={{
-                  background: m.paid ? "rgba(16,185,129,0.12)" : m.approved ? "rgba(99,102,241,0.12)" : "rgba(0,0,0,0.04)",
-                  color: m.paid ? "#10b981" : m.approved ? "#6366f1" : "#9ca3af",
-                  border: `1.5px solid ${m.paid ? "rgba(16,185,129,0.25)" : m.approved ? "rgba(99,102,241,0.25)" : "rgba(0,0,0,0.08)"}`,
-                }}
-                title={`M${idx + 1}: ${formatBnb(m.amount)} — ${m.paid ? "Paid" : m.approved ? "Approved" : "Pending"}`}
-              >
-                {idx + 1}
-              </div>
-            ))}
-          </div>
-
-          {actionSlot && <div className="flex gap-2">{actionSlot}</div>}
+      <div className="border border-gray-100 rounded-2xl p-4 bg-white/50 space-y-4">
+        <p className="text-[10px] font-body font-bold uppercase tracking-widest text-gray-400">Milestones</p>
+        <div className="flex gap-2 flex-wrap">
+          {campaign.milestones.map((m, idx) => (
+            <div
+              key={idx}
+              className="relative w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all group cursor-default"
+              style={{
+                background: m.paid
+                  ? "linear-gradient(135deg, rgba(16,185,129,0.15), rgba(52,211,153,0.08))"
+                  : m.approved
+                    ? "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.08))"
+                    : m.proofHash.length > 0
+                      ? "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(251,191,36,0.06))"
+                      : "rgba(0,0,0,0.03)",
+                color: m.paid ? "#10b981" : m.approved ? "#6366f1" : m.proofHash.length > 0 ? "#f59e0b" : "#9ca3af",
+                border: `1.5px solid ${m.paid ? "rgba(16,185,129,0.3)" : m.approved ? "rgba(99,102,241,0.3)" : m.proofHash.length > 0 ? "rgba(245,158,11,0.25)" : "rgba(0,0,0,0.06)"
+                  }`,
+              }}
+              title={`M${idx + 1}: ${formatBnb(m.amount)} — ${m.paid ? "Paid ✓" : m.approved ? "Approved" : m.proofHash.length > 0 ? "Proof Submitted" : "Pending"}`}
+            >
+              {m.paid ? (
+                <CheckCircle2 size={14} strokeWidth={2.5} />
+              ) : (
+                idx + 1
+              )}
+            </div>
+          ))}
         </div>
+
+        {/* Action buttons row */}
+        {actionSlot && (
+          <>
+            <div className="h-px bg-gray-100" />
+            <div className="flex flex-wrap gap-2 justify-end">{actionSlot}</div>
+          </>
+        )}
       </div>
     </div>
   );
