@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Monitor, Cpu, Smartphone, Check } from "lucide-react";
+import { Cpu, Check } from "lucide-react";
 
 /* ── Cloud Bubble ── */
 function CloudBubble({
