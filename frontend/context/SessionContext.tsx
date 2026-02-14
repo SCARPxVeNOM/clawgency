@@ -359,6 +359,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
 
       const signature = await signMessageAsync({
+        account: walletAddress,
         message: challengeBody.message
       });
 
