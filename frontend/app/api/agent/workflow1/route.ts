@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { runOpenClawWorkflow } from "@/lib/server/openclaw";
+import { runWorkflow1 } from "@/lib/server/workflows/workflow1";
 import type { Workflow1Request, Workflow1Response } from "@/types/agent";
+
+export const runtime = "nodejs";
 
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
@@ -112,7 +114,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { data } = await runOpenClawWorkflow<Workflow1Response>("workflow1", validation.value);
+    const data = await runWorkflow1(validation.value);
     if (!validateResponseBody(data)) {
       return NextResponse.json({ error: "Workflow1 returned invalid response shape." }, { status: 502 });
     }
@@ -122,4 +124,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

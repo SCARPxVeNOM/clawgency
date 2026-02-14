@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertAllowedLabel, readLabeledReplies } from "@/lib/server/email";
-import { runOpenClawWorkflow } from "@/lib/server/openclaw";
+import { runEmailReplyParseWorkflow } from "@/lib/server/workflows/email-reply-parse";
 import { checkRateLimit } from "@/lib/server/rate-limit";
 import type { EmailReplyParseResponse } from "@/types/agent";
 
@@ -89,16 +89,12 @@ async function runReadReplies(input: ReadRepliesRequest) {
 
     const parsed = [];
     for (const reply of result.replies) {
-      const { data } = await runOpenClawWorkflow<EmailReplyParseResponse>(
-        "emailReplyParse",
-        {
-          replyText: reply.bodyText,
-          fromEmail: reply.fromEmail,
-          threadId: reply.threadId,
-          messageId: reply.messageId
-        },
-        12_000
-      );
+      const data = await runEmailReplyParseWorkflow({
+        replyText: reply.bodyText,
+        fromEmail: reply.fromEmail,
+        threadId: reply.threadId,
+        messageId: reply.messageId
+      });
 
       if (!validateParserOutput(data)) {
         return NextResponse.json({ error: "Email reply parser returned invalid response shape." }, { status: 502 });

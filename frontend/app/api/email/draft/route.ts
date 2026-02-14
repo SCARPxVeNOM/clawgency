@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runOpenClawWorkflow } from "@/lib/server/openclaw";
+import { runEmailDraftWorkflow } from "@/lib/server/workflows/email-draft";
 import { checkRateLimit } from "@/lib/server/rate-limit";
 import type { EmailDraftRequest, EmailDraftResponse } from "@/types/agent";
 
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
 
   try {
     // Users do not connect personal Gmail. Moltbot drafts only; backend controls send step.
-    const { data } = await runOpenClawWorkflow<EmailDraftResponse>("emailDraft", validation.value, 15_000);
+    const data = await runEmailDraftWorkflow(validation.value);
     if (!validateResponseBody(data)) {
       return NextResponse.json({ error: "Email draft workflow returned invalid response shape." }, { status: 502 });
     }

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
-import { resolveOpenClawRoot } from "@/lib/server/openclaw";
 
 export type HumanApprovalOutcome = "sent" | "failed";
 
@@ -33,8 +33,13 @@ const SIGNATURE_ALG: SignedApprovalLogEntry["signatureAlg"] = "hmac-sha256-v1";
 const DEV_FALLBACK_SIGNING_KEY = "dev-insecure-human-approval-signing-key";
 
 export function resolveHumanApprovalLogPath(): string {
-  const root = resolveOpenClawRoot();
-  return path.resolve(root, "logs", HUMAN_APPROVAL_LOG_FILE);
+  const configured = process.env.CLAWGENCY_HUMAN_APPROVAL_LOG_FILE?.trim();
+  if (configured) {
+    return path.isAbsolute(configured) ? configured : path.resolve(process.cwd(), configured);
+  }
+
+  // Serverless-friendly default (Vercel allows writing to os.tmpdir()).
+  return path.join(os.tmpdir(), "clawgency", HUMAN_APPROVAL_LOG_FILE);
 }
 
 function resolveSigningKey(): string {

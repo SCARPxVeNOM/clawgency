@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { fetchProfilesByWallets } from "@/lib/server/profiles-store";
-import { runOpenClawWorkflow } from "@/lib/server/openclaw";
+import { runEmailDraftWorkflow } from "@/lib/server/workflows/email-draft";
 import { appendHumanApprovalLog, assertHumanApprovalLoggingReady } from "@/lib/server/human-approval";
 import { sendPlatformEmail } from "@/lib/server/email";
 import { checkRateLimit } from "@/lib/server/rate-limit";
 import { isWalletAddress, normalizeWalletAddress } from "@/lib/profile-types";
-import type { EmailDraftResponse } from "@/types/agent";
 
 export const runtime = "nodejs";
 
@@ -142,21 +141,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: draft } = await runOpenClawWorkflow<EmailDraftResponse>(
-      "emailDraft",
-      {
-        brandName: brandProfile.displayName,
-        brandEmail: brandProfile.email,
-        influencerName: influencerProfile.displayName,
-        influencerEmail: influencerProfile.email,
-        campaignTitle: parsedBody.campaignTitle,
-        campaignDetails: parsedBody.campaignDetails,
-        budgetBNB: parsedBody.budgetBNB,
-        ctaUrl: parsedBody.ctaUrl,
-        humanReviewerId: systemApproverId()
-      },
-      15_000
-    );
+    const draft = await runEmailDraftWorkflow({
+      brandName: brandProfile.displayName,
+      brandEmail: brandProfile.email,
+      influencerName: influencerProfile.displayName,
+      influencerEmail: influencerProfile.email,
+      campaignTitle: parsedBody.campaignTitle,
+      campaignDetails: parsedBody.campaignDetails,
+      budgetBNB: parsedBody.budgetBNB,
+      ctaUrl: parsedBody.ctaUrl,
+      humanReviewerId: systemApproverId()
+    });
 
     const approvalSessionId = createApprovalSessionId(parsedBody.campaignId);
 

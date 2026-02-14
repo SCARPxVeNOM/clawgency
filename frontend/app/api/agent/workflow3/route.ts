@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { runOpenClawWorkflow } from "@/lib/server/openclaw";
+import { runWorkflow3 } from "@/lib/server/workflows/workflow3";
 import type { Workflow3Request, Workflow3Response } from "@/types/agent";
+
+export const runtime = "nodejs";
 
 function validateRequestBody(body: unknown): { ok: true; value: Workflow3Request } | { ok: false; error: string } {
   if (body === undefined || body === null || body === "") {
@@ -57,7 +59,7 @@ async function runMonitoring(input: Workflow3Request) {
   }
 
   try {
-    const { data } = await runOpenClawWorkflow<Workflow3Response>("workflow3", input, 25_000);
+    const data = await runWorkflow3(input);
     if (!validateResponseBody(data)) {
       return NextResponse.json({ error: "Workflow3 returned invalid response shape." }, { status: 502 });
     }
@@ -95,4 +97,3 @@ export async function POST(request: Request) {
 
   return runMonitoring(validation.value);
 }
-

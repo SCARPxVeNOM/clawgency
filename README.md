@@ -24,7 +24,7 @@ Human-in-the-loop is mandatory:
 - Contract: `0x1f33F449ddf8E4245EeF30a77Fa1290d408D41C9`
 - Verified source: `https://testnet.bscscan.com/address/0x1f33F449ddf8E4245EeF30a77Fa1290d408D41C9#code`
 
-## Directory Layout
+## Directory Layout 
 
 ```txt
 clawgency-slot2-professional/
@@ -259,9 +259,11 @@ Frontend API routes for platform-managed email:
 - `GET /api/email/oauth/start?redirect=1` (redirect directly to consent)
 - `GET /api/email/oauth/callback` (token exchange + refresh token persistence)
 
-Logs are written to:
+Logs:
 
-- `openclaw/logs/agent-audit.log`
+- OpenClaw CLI workflows (local dev): `openclaw/logs/*`
+- Frontend API agent logs (serverless-friendly): `os.tmpdir()/clawgency/agent-audit.log` (override with `CLAWGENCY_AGENT_AUDIT_LOG_FILE`)
+- Frontend email approval audit logs (serverless-friendly): `os.tmpdir()/clawgency/human-approval.log` (override with `CLAWGENCY_HUMAN_APPROVAL_LOG_FILE`)
 
 One-time OAuth bootstrap (platform Gmail only):
 
@@ -280,7 +282,7 @@ Required payload fields for `POST /api/email/send`:
 
 Each send attempt is appended to:
 
-- `openclaw/logs/human-approval.log`
+- `os.tmpdir()/clawgency/human-approval.log` (override with `CLAWGENCY_HUMAN_APPROVAL_LOG_FILE`)
 
 Security hardening included:
 
@@ -329,6 +331,22 @@ Details:
    - `frontend/.env.local` (`NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS`)
 4. Verify with `npm run verify:testnet`.
 5. Start frontend and run demo from `docs/DEMO.md`.
+
+## Deploy On Vercel
+
+Deploy the Next.js app (including API routes):
+
+1. Push this repo to GitHub/GitLab/Bitbucket.
+2. In Vercel: New Project -> Import Repo.
+3. Set **Root Directory** to `frontend`.
+4. Set **Build Command** to `npm run build` and **Install Command** to `npm ci`.
+5. Configure Environment Variables (Project Settings -> Environment Variables) using `frontend/.env.local.example` as the template.
+
+Notes:
+
+- For a safe demo deployment, keep `EMAIL_PROVIDER_MODE=mock` (no Gmail credentials required).
+- If you enable live Gmail, store secrets in Vercel env vars (do not rely on writing `GMAIL_REFRESH_TOKEN_FILE` on serverless).
+- Serverless filesystem is ephemeral: `/api/agent-logs` and `/api/email/approval-logs` are best-effort unless you wire them to durable storage.
 
 ## Known Limitations
 

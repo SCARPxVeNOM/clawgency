@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchProfilesByWallets } from "@/lib/server/profiles-store";
-import { runOpenClawWorkflow } from "@/lib/server/openclaw";
+import { runEmailCompletionDraftWorkflow } from "@/lib/server/workflows/email-completion-draft";
 import { appendHumanApprovalLog, assertHumanApprovalLoggingReady } from "@/lib/server/human-approval";
 import { sendPlatformEmail } from "@/lib/server/email";
 import { checkRateLimit } from "@/lib/server/rate-limit";
@@ -15,22 +15,6 @@ type CompletionEmailRequest = {
   proofHash?: unknown;
   milestoneNumber?: unknown;
   campaignTitle?: unknown;
-};
-
-type CompletionDraftResponse = {
-  schemaVersion: "1.0.0";
-  mode: "advisory";
-  draftId: string;
-  subjectOptions: string[];
-  recommendedSubject: string;
-  bodyText: string;
-  bodyHtml: string;
-  reasoning: string[];
-  safety: {
-    requiresHumanApproval: true;
-    platformManagedEmailOnly: true;
-    noAutoSend: true;
-  };
 };
 
 type ParsedCompletionEmailRequest = {
@@ -150,20 +134,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: draft } = await runOpenClawWorkflow<CompletionDraftResponse>(
-      "emailCompletionDraft",
-      {
-        campaignId: parsedBody.campaignIdNumber,
-        milestoneNumber: parsedBody.milestoneNumber,
-        brandName: brandProfile.displayName,
-        brandEmail: brandProfile.email,
-        influencerName: influencerProfile.displayName,
-        influencerEmail: influencerProfile.email,
-        campaignTitle: parsedBody.campaignTitle,
-        proofHash: parsedBody.proofHash
-      },
-      15_000
-    );
+    const draft = await runEmailCompletionDraftWorkflow({
+      campaignId: parsedBody.campaignIdNumber,
+      milestoneNumber: parsedBody.milestoneNumber,
+      brandName: brandProfile.displayName,
+      brandEmail: brandProfile.email,
+      influencerName: influencerProfile.displayName,
+      influencerEmail: influencerProfile.email,
+      campaignTitle: parsedBody.campaignTitle,
+      proofHash: parsedBody.proofHash
+    });
 
     const approvalSessionId = createApprovalSessionId(parsedBody.campaignId);
 
