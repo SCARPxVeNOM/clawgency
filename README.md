@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/456.png" alt="Clawgency icon" width="110" />
+  <img src="frontend/public/123.png" alt="Clawgency icon" width="110" />
 </p>
 
 <h1 align="center">Clawgency</h1>
