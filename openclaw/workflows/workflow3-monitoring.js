@@ -20,6 +20,10 @@ function env(name, fallback = "") {
   return process.env[name] ?? fallback;
 }
 
+function useTestnet() {
+  return env("NEXT_PUBLIC_USE_TESTNET", "true").toLowerCase() === "true";
+}
+
 function parseInput(arg) {
   if (!arg) {
     return {};
@@ -31,10 +35,13 @@ function parseInput(arg) {
 
 async function main() {
   const input = parseInput(process.argv[2]);
-  const rpc = env("BSC_TESTNET_RPC_URL", "https://data-seed-prebsc-1-s1.bnbchain.org:8545");
-  const contractAddress = env("CONTRACT_ADDRESS_TESTNET");
+  const testnet = useTestnet();
+  const rpc = testnet
+    ? env("BSC_TESTNET_RPC_URL", "https://data-seed-prebsc-1-s1.bnbchain.org:8545")
+    : env("BSC_MAINNET_RPC_URL", "https://bsc-dataseed.binance.org");
+  const contractAddress = testnet ? env("CONTRACT_ADDRESS_TESTNET") : env("CONTRACT_ADDRESS_MAINNET");
   if (!contractAddress) {
-    throw new Error("Set CONTRACT_ADDRESS_TESTNET in environment.");
+    throw new Error(`Set ${testnet ? "CONTRACT_ADDRESS_TESTNET" : "CONTRACT_ADDRESS_MAINNET"} in environment.`);
   }
 
   const provider = new ethers.JsonRpcProvider(rpc);

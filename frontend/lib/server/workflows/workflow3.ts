@@ -3,19 +3,44 @@ import { appendAgentAuditLog } from "@/lib/server/agent-audit";
 import { createPublicClient, http, parseAbiItem } from "viem";
 
 const DEFAULT_TESTNET_RPC_URL = "https://data-seed-prebsc-1-s1.bnbchain.org:8545";
+const DEFAULT_MAINNET_RPC_URL = "https://bsc-dataseed.binance.org";
+
+function useTestnet(): boolean {
+  return (process.env.NEXT_PUBLIC_USE_TESTNET ?? "true").toLowerCase() === "true";
+}
 
 function resolveRpcUrl(): string {
+  if (useTestnet()) {
+    return (
+      process.env.BSC_TESTNET_RPC_URL ??
+      process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ??
+      DEFAULT_TESTNET_RPC_URL
+    ).trim();
+  }
+
   return (
-    process.env.BSC_TESTNET_RPC_URL ??
-    process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ??
-    DEFAULT_TESTNET_RPC_URL
+    process.env.BSC_MAINNET_RPC_URL ??
+    process.env.NEXT_PUBLIC_BSC_MAINNET_RPC_URL ??
+    DEFAULT_MAINNET_RPC_URL
   ).trim();
 }
 
 function resolveContractAddress(): `0x${string}` {
-  const configured = (process.env.CONTRACT_ADDRESS_TESTNET ?? process.env.NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS ?? "").trim();
+  const configured = (
+    useTestnet()
+      ? process.env.CONTRACT_ADDRESS_TESTNET
+      : process.env.CONTRACT_ADDRESS_MAINNET
+  )?.trim();
+  const fallbackAddress = process.env.NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS?.trim();
+  const resolved = configured || fallbackAddress || "";
+
+  if (!resolved) {
+    const requiredVar = useTestnet() ? "CONTRACT_ADDRESS_TESTNET" : "CONTRACT_ADDRESS_MAINNET";
+    throw new Error(`Set ${requiredVar} in environment.`);
+  }
+
   if (!configured) {
-    throw new Error("Set CONTRACT_ADDRESS_TESTNET in environment.");
+    return resolved as `0x${string}`;
   }
   return configured as `0x${string}`;
 }
@@ -112,4 +137,3 @@ export async function runWorkflow3(input: Workflow3Request): Promise<Workflow3Re
     recommendations: []
   };
 }
-

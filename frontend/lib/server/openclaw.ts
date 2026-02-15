@@ -89,15 +89,25 @@ function buildWorkflowEnv(workflow: OpenClawWorkflow): NodeJS.ProcessEnv {
 
   // Pass only workflow-specific non-secret env values.
   if (workflow === "workflow3") {
-    const bscRpc =
+    const useTestnet = (process.env.NEXT_PUBLIC_USE_TESTNET ?? "true").toLowerCase() === "true";
+    const bscTestnetRpc =
       process.env.BSC_TESTNET_RPC_URL ??
       process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ??
       "https://data-seed-prebsc-1-s1.bnbchain.org:8545";
-    const contractAddress =
+    const bscMainnetRpc =
+      process.env.BSC_MAINNET_RPC_URL ??
+      process.env.NEXT_PUBLIC_BSC_MAINNET_RPC_URL ??
+      "https://bsc-dataseed.binance.org";
+    const testnetAddress =
       process.env.CONTRACT_ADDRESS_TESTNET ?? process.env.NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS ?? "";
+    const mainnetAddress =
+      process.env.CONTRACT_ADDRESS_MAINNET ?? process.env.NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS ?? "";
 
-    (env as Record<string, string | undefined>).BSC_TESTNET_RPC_URL = bscRpc;
-    (env as Record<string, string | undefined>).CONTRACT_ADDRESS_TESTNET = contractAddress;
+    (env as Record<string, string | undefined>).NEXT_PUBLIC_USE_TESTNET = useTestnet ? "true" : "false";
+    (env as Record<string, string | undefined>).BSC_TESTNET_RPC_URL = bscTestnetRpc;
+    (env as Record<string, string | undefined>).BSC_MAINNET_RPC_URL = bscMainnetRpc;
+    (env as Record<string, string | undefined>).CONTRACT_ADDRESS_TESTNET = testnetAddress;
+    (env as Record<string, string | undefined>).CONTRACT_ADDRESS_MAINNET = mainnetAddress;
   }
 
   (env as Record<string, string | undefined>).OPENCLAW_ROOT = resolveOpenClawRoot();

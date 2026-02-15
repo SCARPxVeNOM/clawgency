@@ -41,18 +41,28 @@ function validateResponseBody(body: unknown): body is Workflow3Response {
   return true;
 }
 
+function useTestnet(): boolean {
+  return (process.env.NEXT_PUBLIC_USE_TESTNET ?? "true").toLowerCase() === "true";
+}
+
 function contractAddressConfigured(): boolean {
+  if (useTestnet()) {
+    return Boolean(
+      (process.env.CONTRACT_ADDRESS_TESTNET ?? process.env.NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS ?? "").trim()
+    );
+  }
+
   return Boolean(
-    (process.env.CONTRACT_ADDRESS_TESTNET ?? process.env.NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS ?? "").trim()
+    (process.env.CONTRACT_ADDRESS_MAINNET ?? process.env.NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS ?? "").trim()
   );
 }
 
 async function runMonitoring(input: Workflow3Request) {
   if (!contractAddressConfigured()) {
+    const requiredVar = useTestnet() ? "CONTRACT_ADDRESS_TESTNET" : "CONTRACT_ADDRESS_MAINNET";
     return NextResponse.json(
       {
-        error:
-          "Monitoring requires CONTRACT_ADDRESS_TESTNET or NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS in frontend runtime environment."
+        error: `Monitoring requires ${requiredVar} or NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS in frontend runtime environment.`
       },
       { status: 503 }
     );

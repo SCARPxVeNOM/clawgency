@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, UserCircle2, Link2, BadgeCheck, BriefcaseBusiness, Sparkles } from "lucide-react";
+import { Search, UserCircle2, Link2, BadgeCheck, BriefcaseBusiness, Sparkles, Copy, Check } from "lucide-react";
 import { fetchAllCampaigns, type CampaignView } from "@/lib/campaigns";
 import { isContractConfigured } from "@/lib/contract";
 import type { RegisteredProfile } from "@/lib/profile-types";
@@ -37,16 +37,26 @@ function proofHref(proofHash: string): string | null {
   return null;
 }
 
-function shortAddr(value: string): string {
-  return `${value.slice(0, 6)}...${value.slice(-4)}`;
-}
-
 export default function CreatorsPage() {
   const [search, setSearch] = useState("");
   const [creators, setCreators] = useState<RegisteredProfile[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [copiedWallet, setCopiedWallet] = useState<string | null>(null);
+
+  async function copyWalletAddress(walletAddress: string) {
+    try {
+      await navigator.clipboard.writeText(walletAddress);
+      setCopiedWallet(walletAddress);
+      window.setTimeout(() => {
+        setCopiedWallet((current) => (current === walletAddress ? null : current));
+      }, 1500);
+    } catch {
+      // Clipboard write can fail on restricted browsers; keep UI stable.
+      setCopiedWallet(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -207,7 +217,19 @@ export default function CreatorsPage() {
                     </div>
                     <div>
                       <h2 className="text-lg font-heading font-bold text-gray-900">{creator.displayName}</h2>
-                      <p className="text-xs font-mono text-gray-500">{shortAddr(creator.walletAddress)}</p>
+                      <div className="mt-1 flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Wallet</span>
+                        <code className="text-[11px] font-mono text-gray-600 break-all">{creator.walletAddress}</code>
+                        <button
+                          type="button"
+                          onClick={() => void copyWalletAddress(creator.walletAddress)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-600 text-[10px] font-bold hover:bg-indigo-100 transition-colors"
+                          aria-label={`Copy wallet address for ${creator.displayName}`}
+                        >
+                          {copiedWallet === creator.walletAddress ? <Check size={11} /> : <Copy size={11} />}
+                          {copiedWallet === creator.walletAddress ? "Copied" : "Copy"}
+                        </button>
+                      </div>
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         <span
                           className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full"
@@ -306,4 +328,3 @@ export default function CreatorsPage() {
     </div>
   );
 }
-
