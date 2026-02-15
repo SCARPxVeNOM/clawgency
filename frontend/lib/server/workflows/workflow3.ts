@@ -5,12 +5,12 @@ import { createPublicClient, http, parseAbiItem } from "viem";
 const DEFAULT_TESTNET_RPC_URL = "https://data-seed-prebsc-1-s1.bnbchain.org:8545";
 const DEFAULT_MAINNET_RPC_URL = "https://bsc-dataseed.binance.org";
 
-function useTestnet(): boolean {
+function isTestnetMode(): boolean {
   return (process.env.NEXT_PUBLIC_USE_TESTNET ?? "true").toLowerCase() === "true";
 }
 
 function resolveRpcUrl(): string {
-  if (useTestnet()) {
+  if (isTestnetMode()) {
     return (
       process.env.BSC_TESTNET_RPC_URL ??
       process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ??
@@ -27,7 +27,7 @@ function resolveRpcUrl(): string {
 
 function resolveContractAddress(): `0x${string}` {
   const configured = (
-    useTestnet()
+    isTestnetMode()
       ? process.env.CONTRACT_ADDRESS_TESTNET
       : process.env.CONTRACT_ADDRESS_MAINNET
   )?.trim();
@@ -35,7 +35,7 @@ function resolveContractAddress(): `0x${string}` {
   const resolved = configured || fallbackAddress || "";
 
   if (!resolved) {
-    const requiredVar = useTestnet() ? "CONTRACT_ADDRESS_TESTNET" : "CONTRACT_ADDRESS_MAINNET";
+    const requiredVar = isTestnetMode() ? "CONTRACT_ADDRESS_TESTNET" : "CONTRACT_ADDRESS_MAINNET";
     throw new Error(`Set ${requiredVar} in environment.`);
   }
 

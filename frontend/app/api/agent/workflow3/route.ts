@@ -41,12 +41,12 @@ function validateResponseBody(body: unknown): body is Workflow3Response {
   return true;
 }
 
-function useTestnet(): boolean {
+function isTestnetMode(): boolean {
   return (process.env.NEXT_PUBLIC_USE_TESTNET ?? "true").toLowerCase() === "true";
 }
 
 function contractAddressConfigured(): boolean {
-  if (useTestnet()) {
+  if (isTestnetMode()) {
     return Boolean(
       (process.env.CONTRACT_ADDRESS_TESTNET ?? process.env.NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS ?? "").trim()
     );
@@ -59,7 +59,7 @@ function contractAddressConfigured(): boolean {
 
 async function runMonitoring(input: Workflow3Request) {
   if (!contractAddressConfigured()) {
-    const requiredVar = useTestnet() ? "CONTRACT_ADDRESS_TESTNET" : "CONTRACT_ADDRESS_MAINNET";
+    const requiredVar = isTestnetMode() ? "CONTRACT_ADDRESS_TESTNET" : "CONTRACT_ADDRESS_MAINNET";
     return NextResponse.json(
       {
         error: `Monitoring requires ${requiredVar} or NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS in frontend runtime environment.`
