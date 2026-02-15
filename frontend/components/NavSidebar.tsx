@@ -6,6 +6,7 @@ import {
   Activity,
   Building2,
   Compass,
+  Users,
   Home,
   IdCard,
   LayoutDashboard,
@@ -22,6 +23,7 @@ import { useSession, type AppRole } from "@/context/SessionContext";
 const navItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/campaigns/explore", label: "Explore", icon: Compass },
+  { href: "/creators", label: "Creators", icon: Users },
   { href: "/activity", label: "Activity", icon: Activity },
   { href: "/register", label: "Profile", icon: IdCard },
   { href: "/brand/dashboard", label: "Brand", icon: LayoutDashboard, impliedRole: "brand" as AppRole },

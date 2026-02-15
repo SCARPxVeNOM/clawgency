@@ -2,12 +2,13 @@
 
 import NextLink from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutDashboard, User, ShieldCheck, Heart, LogIn } from "lucide-react";
+import { Home, LayoutDashboard, User, ShieldCheck, Heart, LogIn, Users } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
 
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
+  { href: "/creators", label: "Creators", icon: Users },
   { href: "/activity", label: "Activity", icon: Heart },
   { href: "/brand/dashboard", label: "Brand", icon: LayoutDashboard },
   { href: "/influencer/dashboard", label: "Creator", icon: User },

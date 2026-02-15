@@ -160,6 +160,29 @@ export async function fetchProfilesByWallets(walletAddresses: string[]): Promise
   return profiles;
 }
 
+export async function fetchProfilesByRole(role: RegistrableRole): Promise<RegisteredProfile[]> {
+  const { url, tableName } = getSupabaseConfig();
+  const queryUrl = new URL(`${url}/rest/v1/${tableName}`);
+  queryUrl.searchParams.set("select", PROFILE_SELECT_COLUMNS);
+  queryUrl.searchParams.set("role", `eq.${role}`);
+  queryUrl.searchParams.set("order", "created_at.asc");
+
+  const rows = await runSupabaseRequest<unknown[]>(queryUrl, { method: "GET" });
+  if (!Array.isArray(rows)) {
+    throw new Error("Supabase profile response is malformed.");
+  }
+
+  const profiles: RegisteredProfile[] = [];
+  for (const row of rows) {
+    if (!isSupabaseProfileRow(row)) {
+      continue;
+    }
+    profiles.push(mapRowToProfile(row));
+  }
+
+  return profiles;
+}
+
 export async function upsertWalletProfile(input: ProfileUpsertInput): Promise<RegisteredProfile> {
   const normalized = normalizeProfileInput(input);
   const { url, tableName } = getSupabaseConfig();
