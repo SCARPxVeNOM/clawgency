@@ -5,6 +5,7 @@ type OpenClawFallbackOptions<T> = {
   input?: unknown;
   fallback: () => Promise<T>;
   timeoutMs?: number;
+  strictScript?: boolean;
 };
 
 function envFlag(name: string, fallback: boolean): boolean {
@@ -42,7 +43,8 @@ export async function runWithOpenClawFallback<T>({
   workflow,
   input,
   fallback,
-  timeoutMs
+  timeoutMs,
+  strictScript = false
 }: OpenClawFallbackOptions<T>): Promise<T> {
   if (!isWorkflowEnabled(workflow)) {
     return fallback();
@@ -53,6 +55,10 @@ export async function runWithOpenClawFallback<T>({
     return data;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (strictScript) {
+      throw new Error(`[openclaw] ${workflow} script mode failed: ${message}`);
+    }
+
     console.warn(`[openclaw] ${workflow} failed, using local fallback: ${message}`);
     return fallback();
   }

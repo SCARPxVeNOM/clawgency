@@ -144,6 +144,7 @@ export async function runWorkflow3(input: Workflow3Request): Promise<Workflow3Re
     workflow: "workflow3",
     input,
     timeoutMs: 20_000,
+    strictScript: true,
     fallback: () => runWorkflow3Local(input)
   });
 }

@@ -55,6 +55,16 @@ function defaultOpenClawRoot(): string {
   return path.resolve(process.cwd(), "..", "openclaw");
 }
 
+function resolveFrontendOpenClawWorkflowScript(workflow: OpenClawWorkflow): string | null {
+  if (workflow !== "workflow3") {
+    return null;
+  }
+
+  const filename = path.basename(OPENCLAW_WORKFLOW_SCRIPTS[workflow]);
+  const candidate = path.resolve(process.cwd(), "openclaw", "workflows", filename);
+  return fs.existsSync(candidate) ? candidate : null;
+}
+
 export function resolveOpenClawRoot(): string {
   const configuredRoot = process.env.OPENCLAW_ROOT?.trim();
   const root = configuredRoot ? path.resolve(configuredRoot) : defaultOpenClawRoot();
@@ -65,6 +75,11 @@ export function resolveOpenClawRoot(): string {
 }
 
 export function resolveOpenClawWorkflowScript(workflow: OpenClawWorkflow): string {
+  const frontendScript = resolveFrontendOpenClawWorkflowScript(workflow);
+  if (frontendScript) {
+    return frontendScript;
+  }
+
   const root = resolveOpenClawRoot();
   const relative = OPENCLAW_WORKFLOW_SCRIPTS[workflow];
   const scriptPath = path.resolve(root, relative);
@@ -77,7 +92,7 @@ export function resolveOpenClawAuditLogPath(): string {
   return assertInsideRoot(root, filePath, "Audit log path");
 }
 
-function buildWorkflowEnv(workflow: OpenClawWorkflow): NodeJS.ProcessEnv {
+function buildWorkflowEnv(workflow: OpenClawWorkflow, scriptPath: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     NODE_ENV: process.env.NODE_ENV ?? "production"
   };
@@ -111,7 +126,7 @@ function buildWorkflowEnv(workflow: OpenClawWorkflow): NodeJS.ProcessEnv {
     (env as Record<string, string | undefined>).CONTRACT_ADDRESS_MAINNET = mainnetAddress;
   }
 
-  const openClawRoot = resolveOpenClawRoot();
+  const openClawRoot = path.resolve(path.dirname(scriptPath), "..");
   const runtimeDir =
     process.env.OPENCLAW_RUNTIME_DIR?.trim() || path.join(os.tmpdir(), "clawgency", "openclaw-runtime");
   const auditLogFile =
@@ -120,12 +135,17 @@ function buildWorkflowEnv(workflow: OpenClawWorkflow): NodeJS.ProcessEnv {
     process.env.OPENCLAW_MONITOR_STATE_FILE?.trim() ||
     path.join(os.tmpdir(), "clawgency", "openclaw-monitor-state.json");
   const userMapFile = process.env.OPENCLAW_USER_MAP_FILE?.trim() || path.resolve(openClawRoot, "config", "user-map.json");
+  const nodePath = process.env.NODE_PATH?.trim();
+  const frontendNodeModules = path.resolve(process.cwd(), "node_modules");
 
   (env as Record<string, string | undefined>).OPENCLAW_ROOT = openClawRoot;
   (env as Record<string, string | undefined>).OPENCLAW_RUNTIME_DIR = runtimeDir;
   (env as Record<string, string | undefined>).OPENCLAW_AUDIT_LOG_FILE = auditLogFile;
   (env as Record<string, string | undefined>).OPENCLAW_MONITOR_STATE_FILE = monitorStateFile;
   (env as Record<string, string | undefined>).OPENCLAW_USER_MAP_FILE = userMapFile;
+  (env as Record<string, string | undefined>).NODE_PATH = nodePath
+    ? `${frontendNodeModules}${path.delimiter}${nodePath}`
+    : frontendNodeModules;
 
   return env;
 }
@@ -150,14 +170,15 @@ export async function runOpenClawWorkflow<T>(
   timeoutMs = 20_000
 ): Promise<{ data: T; stderr: string }> {
   const scriptPath = resolveOpenClawWorkflowScript(workflow);
+  const scriptOpenClawRoot = path.resolve(path.dirname(scriptPath), "..");
   const workflowArgs = [scriptPath];
   if (input !== undefined) {
     workflowArgs.push(JSON.stringify(input));
   }
 
   const { stdout, stderr } = await execFileAsync(process.execPath, workflowArgs, {
-    cwd: path.resolve(resolveOpenClawRoot(), ".."),
-    env: buildWorkflowEnv(workflow),
+    cwd: path.resolve(scriptOpenClawRoot, ".."),
+    env: buildWorkflowEnv(workflow, scriptPath),
     timeout: timeoutMs,
     maxBuffer: 2 * 1024 * 1024,
     windowsHide: true
