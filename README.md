@@ -1,371 +1,419 @@
-# Clawgency Slot 2 (Professional)
+<p align="center">
+  <img src="frontend/public/1839.png" alt="Clawgency icon" width="110" />
+</p>
 
-Professional-grade Clawgency: AI-assisted on-chain influencer agency on BNB Chain with milestone escrow, role-based dashboards, OpenClaw workflows, and audit-first safety controls.
+<h1 align="center">Clawgency</h1>
+<p align="center"><strong>AI-assisted, milestone-escrow influencer operations on BNB Chain</strong></p>
 
-## Project Overview
+Clawgency is a professional influencer-operations platform that combines:
+- on-chain escrow execution (BNB Chain)
+- role-based product workflows (Brand / Influencer / Admin)
+- deterministic OpenClaw agent recommendations
+- human-approved email automation with signed audit logs
 
-This repository includes:
+Human-in-the-loop is mandatory for sensitive actions:
+- AI outputs are advisory
+- wallet transactions require manual signature
+- email sends require explicit approval metadata and audit records
 
-- `CampaignEscrowV2` smart contract suite for milestone-based campaign escrow.
-- Next.js frontend with brand/influencer/admin dashboards.
-- OpenClaw local workflows for drafting, proof validation, and monitoring.
-- Safe platform-managed Gmail integration (no user Gmail OAuth required).
-- Security/sandboxing guidance and logging patterns.
-- Automated tests and CI scaffolding.
+## Table of Contents
+1. [Live Deployments](#live-deployments)
+2. [Core Capabilities](#core-capabilities)
+3. [Repository Layout](#repository-layout)
+4. [Architecture](#architecture)
+5. [Smart Contract Structure and Design](#smart-contract-structure-and-design)
+6. [Frontend Product Surface](#frontend-product-surface)
+7. [API Reference](#api-reference)
+8. [OpenClaw Workflows](#openclaw-workflows)
+9. [Configuration](#configuration)
+10. [Local Setup](#local-setup)
+11. [Deployment and Mainnet Migration](#deployment-and-mainnet-migration)
+12. [Vercel Production Setup](#vercel-production-setup)
+13. [Testing](#testing)
+14. [Security Model](#security-model)
+15. [Observability and Logs](#observability-and-logs)
+16. [Known Limitations](#known-limitations)
+17. [Additional Docs](#additional-docs)
 
-Human-in-the-loop is mandatory:
+## Live Deployments
+- Web app: `https://clawgency.vercel.app`
+- BSC Mainnet contract (verified):
+  - `0x3C79563E4AA6566240790B404D18d3f7F093Fa12`
+  - `https://bscscan.com/address/0x3C79563E4AA6566240790B404D18d3f7F093Fa12#code`
 
-- OpenClaw generates recommendations only.
-- Transactions are always manually approved in wallet UI.
+## Core Capabilities
+- Milestone-based campaign escrow with agency fee split
+- Offer negotiation workflow (brand offer, creator counter, accept/decline)
+- Proof submission and brand approval lifecycle
+- Role-specific dashboards:
+  - `/brand/dashboard`
+  - `/influencer/dashboard`
+  - `/admin/analytics`
+- OpenClaw workflows:
+  - campaign drafting
+  - proof validation
+  - on-chain monitoring
+  - outreach/reply email intelligence
+- Backend-only Gmail integration (mock/live modes)
+- HMAC-chained human approval log signatures for email sends
 
-## Current Deployment
-
-- Network: BNB Testnet
-- Contract: `0x1f33F449ddf8E4245EeF30a77Fa1290d408D41C9`
-- Verified source: `https://testnet.bscscan.com/address/0x1f33F449ddf8E4245EeF30a77Fa1290d408D41C9#code`
-
-## Directory Layout 
-
+## Repository Layout
 ```txt
-clawgency-slot2-professional/
-|-- contracts/
-|   `-- CampaignEscrowV2.sol
-|-- scripts/
-|   |-- deploy-v2.ts
-|   `-- verify-v2.ts
-|-- test/
-|   `-- CampaignEscrowV2.ts
-|-- openclaw/
-|   |-- workflows/
-|   |   |-- _shared.js
-|   |   |-- workflow1-intelligent-drafting.js
-|   |   |-- workflow2-proof-validation.js
-|   |   |-- workflow3-monitoring.js
-|   |   |-- workflow4-email-drafting.js
-|   |   |-- workflow5-reply-parsing.js
-|   |   |-- sample-workflow1.json
-|   |   |-- sample-workflow2.json
-|   |   |-- sample-email-draft.json
-|   |   `-- sample-email-reply.json
-|   |-- schemas/
-|   |   |-- email-draft-output.schema.json
-|   |   `-- email-reply-parse-output.schema.json
-|   |-- tests/
-|   |   `-- mock-flows.test.js
-|   |-- templates/
-|   |   `-- safe-prompt-template.md
-|   |-- config/
-|   |   `-- user-map.json
-|   |-- logs/
-|   `-- README.md
-|-- frontend/
-|   |-- app/
-|   |   |-- login/
-|   |   |-- brand/dashboard/
-|   |   |-- influencer/dashboard/
-|   |   |-- admin/analytics/
-|   |   |-- api/agent-logs/
-|   |   `-- api/email/
-|   |-- components/
-|   |-- context/
-|   |-- lib/
-|   `-- tests/
-|-- docs/
-|   |-- ARCHITECTURE.md
-|   |-- SECURITY_SANDBOXING.md
-|   |-- TESTING.md
-|   |-- DEMO.md
-|   `-- CONTRACT_EXPLAINED.md
-`-- .github/workflows/ci.yml
+clawgency/
+|- contracts/
+|  `- CampaignEscrowV2.sol
+|- scripts/
+|  |- deploy-v2.ts
+|  `- verify-v2.ts
+|- test/
+|  `- CampaignEscrowV2.ts
+|- openclaw/
+|  |- workflows/
+|  |- schemas/
+|  |- tests/
+|  |- templates/
+|  `- config/
+|- frontend/
+|  |- app/
+|  |  |- brand/dashboard/
+|  |  |- influencer/dashboard/
+|  |  |- admin/analytics/
+|  |  `- api/
+|  |- components/
+|  |- context/
+|  |- lib/
+|  `- tests/
+|- docs/
+`- .github/workflows/ci.yml
 ```
 
-## Contract Features
+## Architecture
+```mermaid
+flowchart LR
+  BW[Brand Wallet] -->|create / fund / approve / release| SC[CampaignEscrowV2]
+  IW[Influencer Wallet] -->|submitProof / deny| SC
+  SC --> UI[Next.js Dashboards]
+  SC --> MON[Workflow3 Monitoring]
 
-`contracts/CampaignEscrowV2.sol` provides:
+  UI --> API[Next.js API Routes]
+  API --> WF1[Workflow1 Drafting]
+  API --> WF2[Workflow2 Proof Validation]
+  API --> WF3[Workflow3 Monitoring]
+  API --> WF4[Workflow4 Email Draft]
+  API --> WF5[Workflow5 Reply Parse]
+  API --> WF6[Workflow6 Completion Draft]
 
-- `createCampaign(brand, influencer, milestones[], agencyFee)`
+  API --> MAIL[Platform Gmail Adapter]
+  MAIL --> GMAIL[Platform Gmail Inbox]
+
+  API --> ALOG[Agent Audit Log]
+  API --> HLOG[Human Approval Log]
+```
+
+Data flow summary:
+- On-chain value and state transitions happen only in `CampaignEscrowV2`.
+- Frontend reads contract state via `wagmi`/`viem`.
+- AI workflows produce deterministic advisory output.
+- Backend enforces email send policy and approval logging.
+
+## Smart Contract Structure and Design
+Contract file: `contracts/CampaignEscrowV2.sol`
+
+### Objectives
+- Trust-minimized escrow between brands and creators
+- Milestone-gated release flow
+- Transparent agency fee extraction
+- Safety controls for pause, reentrancy, and authorization
+
+### Core Types
+- `CampaignState`: `Created`, `Funded`, `Completed`, `Cancelled`
+- `Campaign` struct fields:
+  - `brand`, `influencer`
+  - `totalMilestoneAmount`, `totalEscrowed`, `totalReleased`
+  - `agencyFeeBps`, `reputationScore`, `state`
+  - arrays for milestone amounts, approvals, paid flags, proof hashes
+
+### Key Storage
+- `campaignCount`
+- `mapping(uint256 => Campaign) _campaigns`
+- `mapping(address => uint256) influencerReputation`
+
+### Function Matrix
+- `createCampaign(...)`
+  - validates addresses, milestones, and fee cap
+  - initializes campaign and milestones
 - `depositFunds(campaignId)` payable
+  - brand-only
+  - updates escrow and transitions to `Funded` if fully covered
 - `submitProof(campaignId, proofHash)`
-- `approveMilestone(campaignId, milestoneIndex)` brand-only
-- `releaseFunds(campaignId)` brand-only payout split
+  - influencer-only
+  - writes proof for next unpaid milestone
+- `approveMilestone(campaignId, milestoneIndex)`
+  - brand-only
+  - requires proof present
+- `releaseFunds(campaignId)`
+  - brand-only + nonReentrant
+  - releases all approved unpaid milestones
+  - splits payout: influencer + agency owner
+- `cancelCampaign(campaignId)`
+  - brand or influencer
+  - only before any payout release
+  - refunds escrow to brand
+- `getCampaign`, `getMilestone`
+  - read helpers for dashboards
+- `pause`, `unpause`
+  - owner-only emergency controls
 
-Payout split:
+### Financial Rules
+- `BASIS_POINTS = 10000`
+- `MAX_AGENCY_FEE_BPS = 3000` (30%)
+- agency payout = `gross * agencyFeeBps / BASIS_POINTS`
+- influencer payout = `gross - agency payout`
 
-- Influencer receives `gross - agencyFee`.
-- Agency treasury (`owner`) receives `agencyFee`.
-
-Security modules:
-
+### Security Controls
 - `Ownable`
 - `Pausable`
 - `ReentrancyGuard`
+- strict role checks (`brand` vs `influencer`)
+- custom errors for deterministic revert handling
 
-Detailed explanation:
+### Lifecycle Invariants
+- cannot release without approved milestones
+- cannot approve milestone without proof
+- cannot cancel after payouts start
+- campaign transitions are monotonic and bounded
 
-- See `docs/CONTRACT_EXPLAINED.md`
+## Frontend Product Surface
+- `/login`: wallet connect + role routing
+- `/register`: signed challenge profile registration
+- `/creators`: global creator directory with wallet copy action
+- `/brand/dashboard`:
+  - AI draft generation
+  - negotiation + on-chain creation
+  - funding, milestone approval, release
+- `/influencer/dashboard`:
+  - offer counter/decline
+  - proof submission + completion email trigger
+- `/admin/analytics`:
+  - monitoring scan
+  - audit logs
+  - human approval email send panel
 
-## Setup Instructions
+Core frontend infra:
+- Next.js 14 app router
+- RainbowKit + wagmi + viem
+- HeroUI + Tailwind CSS
 
-### 1) Contracts
+## API Reference
+### Agent APIs
+- `POST /api/agent/workflow1`
+- `POST /api/agent/workflow2`
+- `GET /api/agent/workflow3`
+- `POST /api/agent/workflow3`
+- `GET /api/agent-logs`
 
-```bash
-cd clawgency-slot2-professional
-npm install
-cp .env.example .env
-```
+### Profile APIs
+- `POST /api/profiles/challenge`
+- `POST /api/profiles/register`
+- `GET /api/profiles`
+- `GET /api/profiles/creators`
 
-Fill `.env`:
+### Offer APIs
+- `GET /api/offers`
+- `POST /api/offers`
+- `POST /api/offers/[offerId]/counter`
+- `POST /api/offers/[offerId]/accept`
+- `POST /api/offers/[offerId]/decline`
 
+### Email APIs
+- `POST /api/email/draft`
+- `POST /api/email/send`
+- `GET /api/email/replies`
+- `POST /api/email/replies`
+- `GET /api/email/approval-logs`
+- `GET /api/email/oauth/start`
+- `GET /api/email/oauth/callback`
+- `POST /api/campaigns/proposal-email`
+- `POST /api/campaigns/completion-email`
+
+## OpenClaw Workflows
+| Workflow | File | Purpose |
+|---|---|---|
+| Workflow 1 | `openclaw/workflows/workflow1-intelligent-drafting.js` | Draft campaign transaction proposal |
+| Workflow 2 | `openclaw/workflows/workflow2-proof-validation.js` | Validate proof syntax and suggest approve/reject |
+| Workflow 3 | `openclaw/workflows/workflow3-monitoring.js` | Scan chain events and produce alerts |
+| Workflow 4 | `openclaw/workflows/workflow4-email-drafting.js` | Draft outreach email (advisory) |
+| Workflow 5 | `openclaw/workflows/workflow5-reply-parsing.js` | Parse reply intent (yes/no/maybe) |
+| Workflow 6 | `openclaw/workflows/workflow6-completion-email-drafting.js` | Draft completion notification email |
+
+Safety posture:
+- no private key access in workflow runtime
+- no auto-send / no auto-execute on-chain
+- advisory-only outputs with human review requirement
+
+## Configuration
+### Root `.env` (contract + shared backend)
 ```env
 PRIVATE_KEY=0x...
 BSC_TESTNET_RPC_URL=https://data-seed-prebsc-1-s1.bnbchain.org:8545
 BSC_MAINNET_RPC_URL=https://bsc-dataseed.binance.org
 ETHERSCAN_API_KEY=...
-AGENCY_TREASURY=0xYourAgencyTreasury
+AGENCY_TREASURY=0x...
 CONTRACT_ADDRESS_TESTNET=
 CONTRACT_ADDRESS_MAINNET=
-EMAIL_PROVIDER_MODE=mock
-CLAWGENCY_PLATFORM_EMAIL=agency@clawgency.xyz
-GMAIL_ACCESS_TOKEN=
-GOOGLE_OAUTH_CLIENT_ID=
-GOOGLE_OAUTH_CLIENT_SECRET=
-GMAIL_REFRESH_TOKEN=
-GMAIL_REFRESH_TOKEN_FILE=.secrets/gmail-refresh-token.json
-GMAIL_OAUTH_REDIRECT_URI=http://localhost:3000/api/email/oauth/callback
-GMAIL_REPLY_LABEL=clawgency-replies
-HUMAN_APPROVAL_LOG_SIGNING_KEY=replace-with-long-random-secret
-EMAIL_DRAFT_RATE_LIMIT_PER_MIN=30
-EMAIL_SEND_RATE_LIMIT_PER_MIN=20
-EMAIL_REPLIES_RATE_LIMIT_PER_MIN=60
-EMAIL_APPROVAL_LOG_RATE_LIMIT_PER_MIN=120
 ```
 
-Build/test:
-
-```bash
-npm run build:contracts
-npm run test:contracts
-```
-
-Deploy:
-
-```bash
-npm run deploy:testnet
-npm run deploy:mainnet
-```
-
-Verify:
-
-```bash
-npm run verify:testnet
-npm run verify:mainnet
-```
-
-### 2) Frontend
-
-```bash
-cd frontend
-npm install
-cp .env.local.example .env.local
-```
-
-Fill `frontend/.env.local`:
-
+### Frontend `frontend/.env.local`
 ```env
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=...
 NEXT_PUBLIC_USE_TESTNET=true
 NEXT_PUBLIC_BSC_TESTNET_RPC_URL=https://data-seed-prebsc-1-s1.bnbchain.org:8545
 NEXT_PUBLIC_BSC_MAINNET_RPC_URL=https://bsc-dataseed.binance.org
 NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS=0x...
-NEXT_PUBLIC_ADMIN_WALLET=0x...
 CONTRACT_ADDRESS_TESTNET=0x...
+CONTRACT_ADDRESS_MAINNET=0x...
+NEXT_PUBLIC_ADMIN_WALLET=0x...
 OPENCLAW_ROOT=../openclaw
+```
+
+### Email / Approval / Profiles envs (frontend runtime)
+```env
 EMAIL_PROVIDER_MODE=mock
 CLAWGENCY_PLATFORM_EMAIL=agency@clawgency.xyz
-GMAIL_ACCESS_TOKEN=
 GOOGLE_OAUTH_CLIENT_ID=
 GOOGLE_OAUTH_CLIENT_SECRET=
 GMAIL_REFRESH_TOKEN=
-GMAIL_REFRESH_TOKEN_FILE=.secrets/gmail-refresh-token.json
 GMAIL_OAUTH_REDIRECT_URI=http://localhost:3000/api/email/oauth/callback
 GMAIL_REPLY_LABEL=clawgency-replies
 HUMAN_APPROVAL_LOG_SIGNING_KEY=replace-with-long-random-secret
-EMAIL_DRAFT_RATE_LIMIT_PER_MIN=30
-EMAIL_SEND_RATE_LIMIT_PER_MIN=20
-EMAIL_REPLIES_RATE_LIMIT_PER_MIN=60
-EMAIL_APPROVAL_LOG_RATE_LIMIT_PER_MIN=120
+SYSTEM_EMAIL_APPROVER_ID=system_openclaw_automation
+
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_PROFILE_TABLE=wallet_profiles
+PROFILE_AUTH_SECRET=replace-with-long-random-secret
 ```
 
-Run:
+## Local Setup
+### Prerequisites
+- Node.js 20+
+- npm 10+
 
+### 1) Install dependencies
 ```bash
-npm run dev
+npm install
+cd frontend && npm install && cd ..
 ```
 
-Routes:
-
-- `/login`
-- `/brand/dashboard`
-- `/influencer/dashboard`
-- `/admin/analytics`
-
-### 3) OpenClaw Workflows
-
-Drafting:
-
+### 2) Contract build + tests
 ```bash
-npm run agent:workflow1 -- openclaw/workflows/sample-workflow1.json
-```
-
-Proof validation:
-
-```bash
-npm run agent:workflow2 -- openclaw/workflows/sample-workflow2.json
-```
-
-On-chain monitoring:
-
-```bash
-npm run agent:workflow3
-```
-
-Email drafting (advisory only):
-
-```bash
-npm run agent:workflow4 -- openclaw/workflows/sample-email-draft.json
-```
-
-Email reply parsing (advisory only):
-
-```bash
-npm run agent:workflow5 -- openclaw/workflows/sample-email-reply.json
-```
-
-Frontend API routes for workflows:
-
-- `POST /api/agent/workflow1`
-- `POST /api/agent/workflow2`
-- `POST /api/agent/workflow3`
-- `GET /api/agent/workflow3`
-
-Frontend API routes for platform-managed email:
-
-- `POST /api/email/draft` (OpenClaw drafting only)
-- `POST /api/email/send` (backend sends via platform Gmail, explicit human approval gate required)
-- `POST /api/email/replies` (read configured label and parse replies)
-- `GET /api/email/replies`
-- `GET /api/email/approval-logs` (human approval audit trail)
-- `GET /api/email/oauth/start` (create one-time Google consent URL)
-- `GET /api/email/oauth/start?redirect=1` (redirect directly to consent)
-- `GET /api/email/oauth/callback` (token exchange + refresh token persistence)
-
-Logs:
-
-- OpenClaw CLI workflows (local dev): `openclaw/logs/*`
-- Frontend API agent logs (serverless-friendly): `os.tmpdir()/clawgency/agent-audit.log` (override with `CLAWGENCY_AGENT_AUDIT_LOG_FILE`)
-- Frontend email approval audit logs (serverless-friendly): `os.tmpdir()/clawgency/human-approval.log` (override with `CLAWGENCY_HUMAN_APPROVAL_LOG_FILE`)
-
-One-time OAuth bootstrap (platform Gmail only):
-
-1. Start frontend: `cd frontend && npm run dev`
-2. Open `http://localhost:3000/api/email/oauth/start?redirect=1`
-3. Complete Google consent with the platform Gmail account
-4. Callback stores refresh token to `GMAIL_REFRESH_TOKEN_FILE`
-5. Keep `EMAIL_PROVIDER_MODE=live` and leave `GMAIL_ACCESS_TOKEN` empty
-
-Required payload fields for `POST /api/email/send`:
-
-- `humanApprovedBy`
-- `humanApprovalConfirmed: true`
-- `approvalSessionId`
-- optional metadata: `campaignId`, `draftId`
-
-Each send attempt is appended to:
-
-- `os.tmpdir()/clawgency/human-approval.log` (override with `CLAWGENCY_HUMAN_APPROVAL_LOG_FILE`)
-
-Security hardening included:
-
-- HMAC-signed audit rows (`HUMAN_APPROVAL_LOG_SIGNING_KEY`)
-- per-route API rate limiting for draft/send/replies/approval-log endpoints
-
-### 4) Agent Onboarding Steps
-
-1. Review `openclaw/templates/safe-prompt-template.md`.
-2. Confirm sandbox restrictions (no key access, no auto-send).
-3. Configure `openclaw/config/user-map.json`.
-4. Run sample workflows and inspect output schema.
-5. Enable human approval gate in operations process.
-
-## Testing
-
-Contract tests:
-
-```bash
+npm run build:contracts
 npm run test:contracts
 ```
 
-Agent mock tests:
-
+### 3) Agent tests
 ```bash
 npm run test:agent
 ```
 
-Frontend e2e smoke:
-
+### 4) Run frontend
 ```bash
 cd frontend
+npm run dev
+```
+
+## Deployment and Mainnet Migration
+### Deploy contract
+```bash
+npm run deploy:testnet
+npm run deploy:mainnet
+```
+
+### Verify contract
+```bash
+npm run verify:testnet
+npm run verify:mainnet
+```
+
+### Mainnet migration checklist
+1. Set `PRIVATE_KEY`, `BSC_MAINNET_RPC_URL`, `AGENCY_TREASURY` in root `.env`.
+2. Run `npm run deploy:mainnet`.
+3. Copy deployed address to:
+   - `.env` -> `CONTRACT_ADDRESS_MAINNET`
+   - `frontend/.env.local` -> `NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS`
+   - `frontend/.env.local` -> `CONTRACT_ADDRESS_MAINNET`
+4. Set `NEXT_PUBLIC_USE_TESTNET=false`.
+5. Run `npm run verify:mainnet`.
+6. Redeploy frontend with matching Vercel env values.
+
+## Vercel Production Setup
+Vercel project settings:
+- Root Directory: `frontend`
+- Install Command: `npm ci`
+- Build Command: `npm run build`
+
+Production env recommendations:
+- use `EMAIL_PROVIDER_MODE=mock` for safe demo
+- for live Gmail:
+  - set `EMAIL_PROVIDER_MODE=live`
+  - set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`
+  - set `GMAIL_OAUTH_REDIRECT_URI=https://<your-domain>/api/email/oauth/callback`
+- set `HUMAN_APPROVAL_LOG_SIGNING_KEY` (required in production)
+
+Important serverless note:
+- `GMAIL_REFRESH_TOKEN_FILE` is not durable on serverless; prefer `GMAIL_REFRESH_TOKEN` env var.
+
+## Testing
+Root:
+```bash
+npm run test:contracts
+npm run test:agent
+```
+
+Frontend:
+```bash
+cd frontend
+npm run lint:ci
+npm run typecheck
+npm run build
 npm run test:e2e
 ```
 
-Details:
+CI pipeline:
+- `.github/workflows/ci.yml`
 
-- `docs/TESTING.md`
+## Security Model
+- Private keys never exposed to OpenClaw workflows.
+- AI recommendations are advisory and non-executing.
+- On-chain actions require explicit wallet signature.
+- Email sends require explicit approval fields and signed audit entry.
+- Rate limiting guards sensitive API routes.
+- Backend-only email sending path (no direct agent send).
 
-## Deployment Instructions (BNB)
-
-1. Set `.env` with RPC/private key/treasury.
-2. Run `npm run deploy:testnet`.
-3. Copy deployed address into:
-   - `.env` (`CONTRACT_ADDRESS_TESTNET`)
-   - `frontend/.env.local` (`NEXT_PUBLIC_CAMPAIGN_ESCROW_V2_ADDRESS`)
-4. Verify with `npm run verify:testnet`.
-5. Start frontend and run demo from `docs/DEMO.md`.
-
-## Deploy On Vercel
-
-Deploy the Next.js app (including API routes):
-
-1. Push this repo to GitHub/GitLab/Bitbucket.
-2. In Vercel: New Project -> Import Repo.
-3. Set **Root Directory** to `frontend`.
-4. Set **Build Command** to `npm run build` and **Install Command** to `npm ci`.
-5. Configure Environment Variables (Project Settings -> Environment Variables) using `frontend/.env.local.example` as the template.
-
-Notes:
-
-- For a safe demo deployment, keep `EMAIL_PROVIDER_MODE=mock` (no Gmail credentials required).
-- If you enable live Gmail, store secrets in Vercel env vars (do not rely on writing `GMAIL_REFRESH_TOKEN_FILE` on serverless).
-- Serverless filesystem is ephemeral: `/api/agent-logs` and `/api/email/approval-logs` are best-effort unless you wire them to durable storage.
+## Observability and Logs
+- Agent audit log (frontend runtime):
+  - default `os.tmpdir()/clawgency/agent-audit.log`
+  - override via `CLAWGENCY_AGENT_AUDIT_LOG_FILE`
+- Human approval log:
+  - default `os.tmpdir()/clawgency/human-approval.log`
+  - override via `CLAWGENCY_HUMAN_APPROVAL_LOG_FILE`
+- OpenClaw local logs:
+  - `openclaw/logs/*`
 
 ## Known Limitations
+- No proxy upgrade pattern for current contract deployment.
+- Offer storage uses local file on serverless by default; migrate to durable DB for multi-instance production.
+- In-memory rate limiter is instance-local; use Redis/KV for global limits.
+- Monitoring is polling-based, not event-stream daemon.
+- Email is single platform mailbox (no multi-tenant inbox partitioning yet).
 
-- Single contract deployment (no proxy upgrade pattern in this version).
-- Proof validation is format/heuristic-based, not content-forensic.
-- Monitoring script is polling-based (not a long-running daemon).
-- Frontend analytics aggregates on-chain state without external BI backend.
-- Email integration uses a single platform account and does not support per-tenant inboxes yet.
-
-## Security Considerations
-
-- Never expose private keys to OpenClaw runtime.
-- Keep AI outputs advisory only.
-- Require manual operator confirmation for state-changing transactions.
-- Keep audit logs immutable and retained.
-- Do not pass Gmail OAuth/user secrets to OpenClaw workflows.
-- Moltbot never sends email directly; backend-only email send path is enforced.
-
-See:
-
+## Additional Docs
+- `docs/ARCHITECTURE.md`
+- `docs/CONTRACT_EXPLAINED.md`
 - `docs/SECURITY_SANDBOXING.md`
 - `docs/EMAIL_INTEGRATION.md`
+- `docs/TESTING.md`
+- `docs/DEMO.md`
