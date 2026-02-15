@@ -1,5 +1,6 @@
 import type { Workflow1Request, Workflow1Response } from "@/types/agent";
 import { appendAgentAuditLog } from "@/lib/server/agent-audit";
+import { runWithOpenClawFallback } from "@/lib/server/workflows/openclaw-runner";
 
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
@@ -83,7 +84,7 @@ function validatePatterns(input: Workflow1Request): string[] {
   return warnings;
 }
 
-export async function runWorkflow1(input: Workflow1Request): Promise<Workflow1Response> {
+async function runWorkflow1Local(input: Workflow1Request): Promise<Workflow1Response> {
   const budgetBnb = parseBudgetBnb(input.budgetBNB);
   const { category, confidence: categoryConfidence } = inferCategory(input.headline ?? "", input.deliverables ?? "");
   const { milestonesBnb, payoutSchedule } = splitMilestones(budgetBnb, input.deliverables ?? "", input.timeline ?? "");
@@ -131,3 +132,11 @@ export async function runWorkflow1(input: Workflow1Request): Promise<Workflow1Re
   return output;
 }
 
+export async function runWorkflow1(input: Workflow1Request): Promise<Workflow1Response> {
+  return runWithOpenClawFallback({
+    workflow: "workflow1",
+    input,
+    timeoutMs: 15_000,
+    fallback: () => runWorkflow1Local(input)
+  });
+}

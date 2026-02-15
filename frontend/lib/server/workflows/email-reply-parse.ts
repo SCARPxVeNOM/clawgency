@@ -1,5 +1,6 @@
 import type { EmailReplyParseRequest, EmailReplyParseResponse } from "@/types/agent";
 import { appendAgentAuditLog } from "@/lib/server/agent-audit";
+import { runWithOpenClawFallback } from "@/lib/server/workflows/openclaw-runner";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -59,7 +60,7 @@ function classifyInterest(
   return { interest: "maybe", confidence: 0.55, reasoning: "No clear accept/decline markers found." };
 }
 
-export async function runEmailReplyParseWorkflow(input: EmailReplyParseRequest): Promise<EmailReplyParseResponse> {
+async function runEmailReplyParseWorkflowLocal(input: EmailReplyParseRequest): Promise<EmailReplyParseResponse> {
   const replyText = nonEmpty(input.replyText, "replyText");
   const replyTextLower = replyText.toLowerCase();
   const fromEmail = safeEmail(input.fromEmail);
@@ -87,3 +88,11 @@ export async function runEmailReplyParseWorkflow(input: EmailReplyParseRequest):
   return output;
 }
 
+export async function runEmailReplyParseWorkflow(input: EmailReplyParseRequest): Promise<EmailReplyParseResponse> {
+  return runWithOpenClawFallback({
+    workflow: "emailReplyParse",
+    input,
+    timeoutMs: 12_000,
+    fallback: () => runEmailReplyParseWorkflowLocal(input)
+  });
+}

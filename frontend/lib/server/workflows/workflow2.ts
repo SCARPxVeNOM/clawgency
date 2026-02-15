@@ -1,5 +1,6 @@
 import type { Workflow2Request, Workflow2Response } from "@/types/agent";
 import { appendAgentAuditLog } from "@/lib/server/agent-audit";
+import { runWithOpenClawFallback } from "@/lib/server/workflows/openclaw-runner";
 
 const CID_PATTERN = /^ipfs:\/\/[a-zA-Z0-9]{20,}$/;
 const URL_PATTERN = /^https?:\/\/[^\s]+$/i;
@@ -14,7 +15,7 @@ function validateProofFormat(proof: string): { valid: boolean; type: "ipfs" | "u
   return { valid: false, type: "unknown" };
 }
 
-export async function runWorkflow2(input: Workflow2Request): Promise<Workflow2Response> {
+async function runWorkflow2Local(input: Workflow2Request): Promise<Workflow2Response> {
   const campaignId = Number(input.campaignId);
   const proof = String((input as { proofHash?: unknown; url?: unknown }).proofHash ?? (input as { url?: unknown }).url ?? "");
 
@@ -58,3 +59,11 @@ export async function runWorkflow2(input: Workflow2Request): Promise<Workflow2Re
   return output;
 }
 
+export async function runWorkflow2(input: Workflow2Request): Promise<Workflow2Response> {
+  return runWithOpenClawFallback({
+    workflow: "workflow2",
+    input,
+    timeoutMs: 12_000,
+    fallback: () => runWorkflow2Local(input)
+  });
+}

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { EmailDraftRequest, EmailDraftResponse } from "@/types/agent";
 import { appendAgentAuditLog } from "@/lib/server/agent-audit";
+import { runWithOpenClawFallback } from "@/lib/server/workflows/openclaw-runner";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -32,7 +33,7 @@ function makeDraftId(brandEmail: string, influencerEmail: string, campaignTitle:
   return `draft_${crypto.createHash("sha256").update(raw).digest("hex").slice(0, 12)}`;
 }
 
-export async function runEmailDraftWorkflow(input: EmailDraftRequest): Promise<EmailDraftResponse> {
+async function runEmailDraftWorkflowLocal(input: EmailDraftRequest): Promise<EmailDraftResponse> {
   const brandName = nonEmpty(input.brandName, "brandName");
   const brandEmail = validEmail(input.brandEmail, "brandEmail");
   const influencerName = (typeof input.influencerName === "string" && input.influencerName.trim()) || "there";
@@ -125,3 +126,11 @@ export async function runEmailDraftWorkflow(input: EmailDraftRequest): Promise<E
   return output;
 }
 
+export async function runEmailDraftWorkflow(input: EmailDraftRequest): Promise<EmailDraftResponse> {
+  return runWithOpenClawFallback({
+    workflow: "emailDraft",
+    input,
+    timeoutMs: 12_000,
+    fallback: () => runEmailDraftWorkflowLocal(input)
+  });
+}

@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -110,7 +111,21 @@ function buildWorkflowEnv(workflow: OpenClawWorkflow): NodeJS.ProcessEnv {
     (env as Record<string, string | undefined>).CONTRACT_ADDRESS_MAINNET = mainnetAddress;
   }
 
-  (env as Record<string, string | undefined>).OPENCLAW_ROOT = resolveOpenClawRoot();
+  const openClawRoot = resolveOpenClawRoot();
+  const runtimeDir =
+    process.env.OPENCLAW_RUNTIME_DIR?.trim() || path.join(os.tmpdir(), "clawgency", "openclaw-runtime");
+  const auditLogFile =
+    process.env.OPENCLAW_AUDIT_LOG_FILE?.trim() || path.join(os.tmpdir(), "clawgency", "agent-audit.log");
+  const monitorStateFile =
+    process.env.OPENCLAW_MONITOR_STATE_FILE?.trim() ||
+    path.join(os.tmpdir(), "clawgency", "openclaw-monitor-state.json");
+  const userMapFile = process.env.OPENCLAW_USER_MAP_FILE?.trim() || path.resolve(openClawRoot, "config", "user-map.json");
+
+  (env as Record<string, string | undefined>).OPENCLAW_ROOT = openClawRoot;
+  (env as Record<string, string | undefined>).OPENCLAW_RUNTIME_DIR = runtimeDir;
+  (env as Record<string, string | undefined>).OPENCLAW_AUDIT_LOG_FILE = auditLogFile;
+  (env as Record<string, string | undefined>).OPENCLAW_MONITOR_STATE_FILE = monitorStateFile;
+  (env as Record<string, string | undefined>).OPENCLAW_USER_MAP_FILE = userMapFile;
 
   return env;
 }

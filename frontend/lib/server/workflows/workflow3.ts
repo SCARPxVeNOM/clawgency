@@ -1,6 +1,7 @@
 import type { Workflow3Request, Workflow3Response } from "@/types/agent";
 import { appendAgentAuditLog } from "@/lib/server/agent-audit";
 import { createPublicClient, http, parseAbiItem } from "viem";
+import { runWithOpenClawFallback } from "@/lib/server/workflows/openclaw-runner";
 
 const DEFAULT_TESTNET_RPC_URL = "https://data-seed-prebsc-1-s1.bnbchain.org:8545";
 const DEFAULT_MAINNET_RPC_URL = "https://bsc-dataseed.binance.org";
@@ -72,7 +73,7 @@ function normalizeFromBlock(input: Workflow3Request, latestBlock: bigint): bigin
   return defaultFrom;
 }
 
-export async function runWorkflow3(input: Workflow3Request): Promise<Workflow3Response> {
+async function runWorkflow3Local(input: Workflow3Request): Promise<Workflow3Response> {
   const rpcUrl = resolveRpcUrl();
   const contractAddress = resolveContractAddress();
 
@@ -136,4 +137,13 @@ export async function runWorkflow3(input: Workflow3Request): Promise<Workflow3Re
     alerts: [],
     recommendations: []
   };
+}
+
+export async function runWorkflow3(input: Workflow3Request): Promise<Workflow3Response> {
+  return runWithOpenClawFallback({
+    workflow: "workflow3",
+    input,
+    timeoutMs: 20_000,
+    fallback: () => runWorkflow3Local(input)
+  });
 }

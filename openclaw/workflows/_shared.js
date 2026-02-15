@@ -2,21 +2,57 @@
 "use strict";
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 function projectRoot() {
   return path.resolve(__dirname, "..", "..");
 }
 
+function env(name, fallback = "") {
+  const value = process.env[name];
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const trimmed = value.trim();
+  return trimmed || fallback;
+}
+
+function runtimeRoot() {
+  const explicitRoot = env("OPENCLAW_RUNTIME_DIR");
+  if (explicitRoot) {
+    return path.resolve(explicitRoot);
+  }
+
+  // Vercel/Lambda filesystems are read-only outside temp paths.
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return path.resolve(os.tmpdir(), "clawgency-openclaw");
+  }
+
+  return path.resolve(projectRoot(), "openclaw");
+}
+
 function logPath() {
-  return path.resolve(projectRoot(), "openclaw", "logs", "agent-audit.log");
+  const explicitFile = env("OPENCLAW_AUDIT_LOG_FILE");
+  if (explicitFile) {
+    return path.resolve(explicitFile);
+  }
+  return path.resolve(runtimeRoot(), "logs", "agent-audit.log");
 }
 
 function statePath() {
-  return path.resolve(projectRoot(), "openclaw", "logs", "monitor-state.json");
+  const explicitFile = env("OPENCLAW_MONITOR_STATE_FILE");
+  if (explicitFile) {
+    return path.resolve(explicitFile);
+  }
+  return path.resolve(runtimeRoot(), "logs", "monitor-state.json");
 }
 
 function userMapPath() {
+  const explicitFile = env("OPENCLAW_USER_MAP_FILE");
+  if (explicitFile) {
+    return path.resolve(explicitFile);
+  }
   return path.resolve(projectRoot(), "openclaw", "config", "user-map.json");
 }
 

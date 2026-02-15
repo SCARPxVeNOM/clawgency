@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { appendAgentAuditLog } from "@/lib/server/agent-audit";
+import { runWithOpenClawFallback } from "@/lib/server/workflows/openclaw-runner";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -72,7 +73,7 @@ function makeDraftId(
   return `draft_completion_${crypto.createHash("sha256").update(raw).digest("hex").slice(0, 12)}`;
 }
 
-export async function runEmailCompletionDraftWorkflow(input: CompletionDraftInput): Promise<CompletionDraftOutput> {
+async function runEmailCompletionDraftWorkflowLocal(input: CompletionDraftInput): Promise<CompletionDraftOutput> {
   const campaignId = toPositiveInteger(input.campaignId, "campaignId");
   const milestoneNumber = toPositiveInteger(input.milestoneNumber, "milestoneNumber");
 
@@ -148,3 +149,11 @@ export async function runEmailCompletionDraftWorkflow(input: CompletionDraftInpu
   return output;
 }
 
+export async function runEmailCompletionDraftWorkflow(input: CompletionDraftInput): Promise<CompletionDraftOutput> {
+  return runWithOpenClawFallback({
+    workflow: "emailCompletionDraft",
+    input,
+    timeoutMs: 12_000,
+    fallback: () => runEmailCompletionDraftWorkflowLocal(input)
+  });
+}
