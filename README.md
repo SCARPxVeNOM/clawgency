@@ -1,7 +1,7 @@
 WINNER OF BNBCHAIN HACKATHON
-<p align="center">
+  
   <img src="https://ik.imagekit.io/kv1doubli/Screenshot%202026-03-10%20235624.png" alt="Clawgency icon" width="110">
-</p>
+
 
 <p align="center">
   <img src="frontend/public/123.png" alt="Clawgency icon" width="110" />
