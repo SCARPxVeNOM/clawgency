@@ -1,6 +1,6 @@
 WINNER OF BNBCHAIN HACKATHON
 <p align="center">
-  <img src="https://i.ibb.co/4ZHFMfcN/Screenshot-2026-03-10-235624.png" width="300%" alt="Clawgency Banner">
+  <img src="https://i.ibb.co/4ZHFMfcN/Screenshot-2026-03-10-235624.png" height="350" alt="Clawgency Banner">
 </p>
 
 <h1 align="center">Clawgency</h1>
