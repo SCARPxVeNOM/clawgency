@@ -1,14 +1,14 @@
 WINNER OF BNBCHAIN HACKATHON
-  
-  <img src="https://ik.imagekit.io/kv1doubli/Screenshot%202026-03-10%20235624.png" alt="Clawgency icon" width="110">
-
-
 <p align="center">
-  <img src="frontend/public/123.png" alt="Clawgency icon" width="110" />
+  <img src="https://i.ibb.co/4ZHFMfcN/Screenshot-2026-03-10-235624.png" width="100%" alt="Clawgency Banner">
 </p>
 
 <h1 align="center">Clawgency</h1>
-<p align="center"><strong>AI-assisted, milestone-escrow influencer operations on BNB Chain</strong></p>
+
+<p align="center">
+<strong>AI-assisted, milestone-escrow influencer operations on BNB Chain</strong>
+</p>  
+ 
 
 Clawgency is a professional influencer-operations platform that combines:
 - on-chain escrow execution (BNB Chain)
