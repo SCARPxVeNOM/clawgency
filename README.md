@@ -40,6 +40,16 @@ Human-in-the-loop is mandatory for sensitive actions:
 16. [Known Limitations](#known-limitations)
 17. [Additional Docs](#additional-docs)
 
+## Demo
+
+<div align="center">
+
+[![Watch Clawgency Demo](https://img.youtube.com/vi/14mQVklPPyQ/maxresdefault.jpg)](https://youtu.be/14mQVklPPyQ)
+
+**Click the image above to watch the demo on YouTube**
+
+</div>
+
 ## Live Deployments
 - Web app: `https://clawgency.vercel.app`
 - BSC Mainnet contract (verified):
